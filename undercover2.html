@@ -18,7 +18,8 @@
     .grid{display:grid;gap:12px}
     .cols-2{grid-template-columns:1fr 1fr}
     label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
-    input[type="text"], input[type="number"], select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit}
+    input[type="text"], input[type="number"], select, textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit}
+    textarea{resize:vertical}
     button{background:var(--accent);color:#04202b;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
     button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
     .muted{color:var(--muted);font-size:13px}
@@ -36,6 +37,9 @@
     .history{max-height:200px;overflow:auto;padding:8px;background:rgba(255,255,255,0.01);border-radius:8px}
     .result{padding:20px;border-radius:12px;text-align:center}
     footer{margin-top:18px;display:flex;gap:8px;justify-content:flex-end}
+    .neutral-screen{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;padding:30px}
+    .neutral-name{font-weight:800;font-size:22px}
+    .neutral-note{color:var(--muted);font-size:13px;text-align:center}
     @media (max-width:720px){header h1{font-size:18px}.cols-2{grid-template-columns:1fr}}
   </style>
 </head>
@@ -43,7 +47,7 @@
   <div class="container">
     <header>
       <h1>Undercover — Jeu local (pass-and-play)</h1>
-      <div class="muted">Version simplifiée — Français</div>
+      <div class="muted">Interface neutre pour la révélation privée • Français</div>
     </header>
 
     <!-- SETUP -->
@@ -74,8 +78,15 @@
       </div>
 
       <div style="margin-top:12px">
+        <label>Catégorie de mots</label>
+        <select id="wordCategory">
+          <option value="all">Toutes catégories</option>
+        </select>
+      </div>
+
+      <div style="margin-top:12px">
         <label>Noms des joueurs (facultatif) — un par ligne. Si vide, des noms générés seront utilisés.</label>
-        <textarea id="playerNames" rows="5" style="width:100%;padding:10px;border-radius:8px;background:var(--glass);border:1px solid rgba(255,255,255,0.03);color:inherit"></textarea>
+        <textarea id="playerNames" rows="5" style="background:var(--glass);border:1px solid rgba(255,255,255,0.03);color:inherit"></textarea>
         <div class="muted" style="margin-top:8px">Exemple :
           <code>Alex
 Sam
@@ -92,7 +103,20 @@ Marie</code>
 
     <!-- PASS-AND-PLAY REVEAL -->
     <section id="revealSection" class="card hidden" style="margin-top:14px">
-      <div id="revealContent" class="reveal-card">
+      <!-- Neutral prompt screen -->
+      <div id="neutralPrompt" class="neutral-screen">
+        <div class="muted">Donnez l'appareil à</div>
+        <div class="neutral-name" id="promptPlayerName">Joueur</div>
+        <div class="neutral-note">Assurez-vous que les autres regardent ailleurs. Appuyez sur "Voir mon rôle/mot" pour afficher vos informations.</div>
+        <div style="display:flex;gap:8px">
+          <button id="viewWordBtn">Voir mon rôle / mot</button>
+          <button id="skipRevealBtn" class="ghost">Passer (ne pas afficher)</button>
+        </div>
+        <div class="muted" id="nextOwnerNote">Prochain : —</div>
+      </div>
+
+      <!-- Actual private reveal -->
+      <div id="privateReveal" class="reveal-card hidden">
         <div class="muted">Joueur <span id="revealPlayerName"></span></div>
         <div style="margin-top:8px">
           <div class="role-tag" id="revealRole">Rôle</div>
@@ -100,10 +124,11 @@ Marie</code>
         <div id="revealWord" class="word"></div>
         <div class="muted" id="revealHint" style="font-size:13px"></div>
         <div style="margin-top:12px">
-          <button id="nextRevealBtn">Suivant / Cacher</button>
+          <button id="hideAndNextBtn">Cacher et suivant</button>
         </div>
       </div>
-      <div style="margin-top:10px" class="muted">Passer l'appareil au joueur suivant et appuyer sur "Suivant / Cacher"</div>
+
+      <div style="margin-top:10px" class="muted">Passez l'appareil au joueur indiqué et suivez les instructions à l'écran.</div>
     </section>
 
     <!-- DISCUSSION -->
@@ -150,33 +175,60 @@ Marie</code>
     </section>
 
     <footer>
-      <div class="muted">Undercover — Pass-and-play • Par défaut : paire de mots aléatoire</div>
+      <div class="muted">Undercover — Pass-and-play • Interface privée améliorée</div>
     </footer>
   </div>
 
   <script>
     /****************************************
      * Undercover - JS logic (single file)
+     * Modifications:
+     * - Base de mots plus riche et catégorisée
+     * - Interface neutre pour la révélation (prompt -> reveal -> cacher)
+     * - Indication du prochain propriétaire du mot
      ****************************************/
 
-    // CONFIG: paire de mots (civil, undercover)
-    const WORD_PAIRS = [
-      ["Chien","Loup"],
-      ["Pomme","Poire"],
-      ["Montagne","Colline"],
-      ["Bateau","Sous-marin"],
-      ["Banane","Ananas"],
-      ["École","Université"],
-      ["Lune","Soleil"],
-      ["Café","Thé"],
-      ["Piano","Guitare"],
-      ["Chaise","Fauteuil"],
-      ["Voiture","Camion"],
-      ["Papier","Carton"],
-      ["Rivière","Océan"],
-      ["Rose","Tulipe"],
-      ["Montre","Horloge"]
-    ];
+    // Riche base de mots organisée par catégorie (chaque entrée = [citizenWord, undercoverWord])
+    const WORD_CATEGORIES = {
+      "Aliments": [
+        ["Pomme","Poire"], ["Banane","Ananas"], ["Fromage","Yaourt"],
+        ["Pain","Brioche"], ["Riz","Quinoa"], ["Tomate","Poivron"],
+        ["Croissant","Pain au chocolat"], ["Saumon","Thon"], ["Glace","Sorbet"]
+      ],
+      "Animaux": [
+        ["Chien","Loup"], ["Chat","Lynx"], ["Cheval","Zèbre"],
+        ["Poisson","Dauphin"], ["Aigle","Faucon"], ["Vache","Buffle"],
+        ["Singe","Gorille"], ["Lapin","Hérisson"], ["Ours","Panda"]
+      ],
+      "Objets": [
+        ["Chaise","Fauteuil"], ["Montre","Horloge"], ["Livre","Magazine"],
+        ["Téléphone","Radio"], ["Stylo","Crayon"], ["Lampe","Bougie"],
+        ["Bouteille","Verre"], ["Clé","Serrure"], ["Couteau","Fourchette"]
+      ],
+      "Géographie": [
+        ["Montagne","Colline"], ["Rivière","Océan"], ["Île","Péninsule"],
+        ["Ville","Village"], ["Forêt","Jungle"], ["Désert","Steppe"],
+        ["Lac","Étang"], ["Plage","Falaises"], ["Volcan","Geyser"]
+      ],
+      "Loisirs": [
+        ["Piano","Guitare"], ["Football","Rugby"], ["Peinture","Sculpture"],
+        ["Lecture","Écriture"], ["Danse","Théâtre"], ["Bricolage","Jardinage"],
+        ["Jeu vidéo","Jeu de société"], ["Photographie","Cinéma"], ["Yoga","Pilates"]
+      ],
+      "Divers": [
+        ["Lune","Soleil"], ["Café","Thé"], ["Voiture","Camion"],
+        ["Papier","Carton"], ["Rose","Tulipe"], ["École","Université"],
+        ["Chapeau","Casquette"], ["Valise","Sac à dos"], ["Ordinateur","Tablette"]
+      ]
+    };
+
+    // Flatten all pairs for "all" category
+    function getPairsForCategory(cat){
+      if (!cat || cat === "all") {
+        return Object.values(WORD_CATEGORIES).flat();
+      }
+      return WORD_CATEGORIES[cat] || [];
+    }
 
     // UI refs
     const setupSection = document.getElementById("setupSection");
@@ -195,12 +247,20 @@ Marie</code>
     const playerNamesInput = document.getElementById("playerNames");
     const startBtn = document.getElementById("startBtn");
     const randomWordsBtn = document.getElementById("randomWordsBtn");
+    const wordCategorySelect = document.getElementById("wordCategory");
 
+    // reveal UI
+    const neutralPrompt = document.getElementById("neutralPrompt");
+    const privateReveal = document.getElementById("privateReveal");
+    const promptPlayerName = document.getElementById("promptPlayerName");
+    const nextOwnerNote = document.getElementById("nextOwnerNote");
+    const viewWordBtn = document.getElementById("viewWordBtn");
+    const skipRevealBtn = document.getElementById("skipRevealBtn");
     const revealPlayerName = document.getElementById("revealPlayerName");
     const revealRole = document.getElementById("revealRole");
     const revealWord = document.getElementById("revealWord");
     const revealHint = document.getElementById("revealHint");
-    const nextRevealBtn = document.getElementById("nextRevealBtn");
+    const hideAndNextBtn = document.getElementById("hideAndNextBtn");
 
     const discussionTimerEl = document.getElementById("discussionTimer");
     const startVoteBtn = document.getElementById("startVoteBtn");
@@ -216,17 +276,36 @@ Marie</code>
     let game = {
       players: [], // {id,name,role,word,alive:true}
       wordPair: null,
+      wordCategory: "all",
       undercoverCount: 1,
       includeMrWhite: true,
       discussionTime: 90,
-      revealIndex: 0, // for pass-and-play
+      revealIndex: 0, // for pass-and-play (index of next player to reveal)
+      revealStage: "prompt", // "prompt" or "reveal"
       votes: {}, // playerId -> votedId (during voting)
       eliminatedHistory: [],
       timerInterval: null
     };
 
-    function pickRandomPair() {
-      return WORD_PAIRS[Math.floor(Math.random()*WORD_PAIRS.length)];
+    // Populate category select
+    (function populateCategories(){
+      const cats = Object.keys(WORD_CATEGORIES);
+      cats.forEach(c=>{
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        wordCategorySelect.appendChild(opt);
+      });
+    })();
+
+    function pickRandomPair(){
+      const pairs = getPairsForCategory(game.wordCategory);
+      if (!pairs.length) {
+        // fallback to all
+        const all = getPairsForCategory("all");
+        return all[Math.floor(Math.random()*all.length)];
+      }
+      return pairs[Math.floor(Math.random()*pairs.length)];
     }
 
     // UI helpers
@@ -239,6 +318,7 @@ Marie</code>
       const ucount = parseInt(undercoverCountInput.value,10);
       const includeMr = includeMrWhiteInput.value === "yes";
       const dTime = Math.max(0, parseInt(discussionTimeInput.value,10) || 0);
+      const cat = wordCategorySelect.value || "all";
 
       if (count < 3) { alert("Il faut au moins 3 joueurs."); return; }
       if (ucount < 1 || ucount >= count) { alert("Nombre d'undercover invalide."); return; }
@@ -246,6 +326,7 @@ Marie</code>
       game.undercoverCount = ucount;
       game.includeMrWhite = includeMr;
       game.discussionTime = dTime;
+      game.wordCategory = cat;
 
       // parse names
       const raw = playerNamesInput.value.trim();
@@ -257,7 +338,7 @@ Marie</code>
       names = names.slice(0,count);
 
       // set words
-      game.wordPair = game.wordPair || pickRandomPair();
+      game.wordPair = pickRandomPair();
 
       // build players
       game.players = names.map((n,i)=>({
@@ -287,17 +368,18 @@ Marie</code>
       game.players.forEach(p=>{
         if (p.role === "citizen") p.word = civilWord;
         else if (p.role === "undercover") p.word = undercoverWord;
-        else if (p.role === "mr_white") p.word = "?? (Mr White)"; // hidden special
+        else if (p.role === "mr_white") p.word = "—";
       });
 
       // reset other state
       game.revealIndex = 0;
+      game.revealStage = "prompt";
       game.votes = {};
       game.eliminatedHistory = [];
       updateCurrentWordsDisplay();
       pushHistory("Partie démarrée — mots choisis.");
 
-      // move to reveal phase
+      // move to reveal phase (neutral pass-and-play)
       hide(setupSection);
       show(revealSection);
       showRevealForIndex(game.revealIndex);
@@ -310,9 +392,16 @@ Marie</code>
       pushHistory("Paire de mots changée manuellement.");
     });
 
+    wordCategorySelect.addEventListener("change", ()=>{
+      game.wordCategory = wordCategorySelect.value || "all";
+      game.wordPair = pickRandomPair();
+      updateCurrentWordsDisplay();
+    });
+
     function updateCurrentWordsDisplay(){
+      // For setup it's okay to show the pair for the host, but keep it subtle.
       if (!game.wordPair) game.wordPair = pickRandomPair();
-      currentWordsEl.textContent = `Paires: "${game.wordPair[0]}" vs "${game.wordPair[1]}"`;
+      currentWordsEl.textContent = `Catégorie: ${game.wordCategory} • (Paire prête)`;
     }
 
     function generateName(i){
@@ -322,7 +411,7 @@ Marie</code>
 
     function shuffle(arr){ return arr.map(a=>[Math.random(),a]).sort((a,b)=>a[0]-b[0]).map(a=>a[1]); }
 
-    // REVEAL (pass-and-play)
+    // REVEAL (pass-and-play) - neutral prompt then private reveal
     function showRevealForIndex(idx){
       const p = game.players[idx];
       if (!p) {
@@ -332,19 +421,51 @@ Marie</code>
         startDiscussionTimerIfNeeded();
         return;
       }
-      revealPlayerName.textContent = p.name;
-      revealRole.textContent = p.role === "citizen" ? "Citoyen" : (p.role === "undercover" ? "Undercover" : "Mr White");
-      const showWord = p.role === "mr_white" ? "Mot secret (Mr White) : vous ne recevrez pas un mot similaire. Si vous êtes éliminé, vous pourrez deviner le mot des undercovers." : p.word;
-      revealWord.textContent = (p.role === "mr_white") ? "—" : p.word;
-      revealHint.textContent = p.role === "mr_white" ? "Mr White : gardez le silence sur le mot, vous pouvez tenter de deviner plus tard." : "Votre mot : dites-en des indices lors de la discussion — sans révéler le mot exact.";
-      // show the reveal section
-      show(revealSection);
-      // ensure nextRevealBtn text
-      nextRevealBtn.textContent = "Suivant / Cacher";
+      // Prompt stage: ask to pass device to p
+      game.revealStage = "prompt";
+      promptPlayerName.textContent = p.name;
+      // indicate next owner (if any)
+      const next = game.players[idx+1];
+      nextOwnerNote.textContent = next ? `Prochain : ${next.name}` : `Prochain : Discussion / Vote`;
+      // hide private reveal, show neutral prompt
+      show(neutralPrompt);
+      hide(privateReveal);
     }
 
-    nextRevealBtn.addEventListener("click",()=>{
-      // advance to next player
+    // When the player chooses to view his role/word
+    viewWordBtn.addEventListener("click", ()=>{
+      const p = game.players[game.revealIndex];
+      if (!p) return;
+      game.revealStage = "reveal";
+      // show private reveal UI with role and word (word hidden for mr white)
+      revealPlayerName.textContent = p.name;
+      revealRole.textContent = p.role === "citizen" ? "Citoyen" : (p.role === "undercover" ? "Undercover" : "Mr White");
+      if (p.role === "mr_white") {
+        revealWord.textContent = "—";
+        revealHint.textContent = "Mr White : vous ne recevez pas de mot similaire. Si vous êtes éliminé, vous pourrez deviner le mot des Undercover.";
+      } else {
+        // Display the actual word
+        revealWord.textContent = p.word;
+        revealHint.textContent = "Gardez le mot secret. Donnez des indices lors de la discussion sans citer le mot exact.";
+      }
+      // UI transitions
+      hide(neutralPrompt);
+      show(privateReveal);
+    });
+
+    // Option to skip revealing (le joueur préfère ne pas afficher)
+    skipRevealBtn.addEventListener("click", ()=>{
+      pushHistory(`${game.players[game.revealIndex].name} a choisi de ne pas afficher son mot.`);
+      advanceRevealIndexAndShowNext();
+    });
+
+    hideAndNextBtn.addEventListener("click", ()=>{
+      // Hide current and go to next prompt (or discussion)
+      pushHistory(`${game.players[game.revealIndex].name} a vu son rôle/mot.`);
+      advanceRevealIndexAndShowNext();
+    });
+
+    function advanceRevealIndexAndShowNext(){
       game.revealIndex++;
       if (game.revealIndex >= game.players.length) {
         // end reveal phase
@@ -354,7 +475,7 @@ Marie</code>
       } else {
         showRevealForIndex(game.revealIndex);
       }
-    });
+    }
 
     // DISCUSSION TIMER
     function startDiscussionTimerIfNeeded(){
@@ -372,7 +493,7 @@ Marie</code>
             clearInterval(game.timerInterval);
             discussionTimerEl.textContent = "00:00";
             pushHistory("Le timer s'est terminé.");
-            // auto-open vote? keep manual to avoid surprises
+            // timer finished — manual start of vote remains
           }
         },1000);
       }
@@ -409,10 +530,7 @@ Marie</code>
     }
 
     // In this local implementation votes are collected as presses (anyone can press)
-    // We track number of presses per target; we require one press per alive player (or allow early tally).
     function handleVote(targetId){
-      // We increment a temporary vote tally for target in votesCount map by using a 'virtual voter' approach
-      // Simpler: present a dialog to ask "Qui vote ?" to record which player is casting this vote (to avoid duplicates)
       const voterName = prompt("Entrez le nom du joueur qui vote (exactement comme dans la liste) :");
       if (!voterName) return;
       const voter = game.players.find(p => p.name === voterName && p.alive);
@@ -424,7 +542,6 @@ Marie</code>
     }
 
     function updateVoteUI(){
-      // show counts of votes received beside each candidate for feedback
       const counts = {};
       Object.values(game.votes).forEach(t => counts[t] = (counts[t]||0)+1);
       Array.from(voteGrid.children).forEach(card => {
@@ -437,7 +554,6 @@ Marie</code>
     tallyBtn.addEventListener("click",()=>{
       const alive = game.players.filter(p=>p.alive);
       const expected = alive.length;
-      // it's possible not every player voted; ask confirmation
       const votesCast = Object.keys(game.votes).length;
       if (votesCast < expected) {
         const ok = confirm(`${votesCast}/${expected} votes enregistrés. Continuer et éliminer quand même ?`);
@@ -447,29 +563,24 @@ Marie</code>
     });
 
     function tallyAndEliminate(){
-      // count votes received
       const counts = {};
       Object.values(game.votes).forEach(t => counts[t] = (counts[t]||0)+1);
       let max = -1;
       Object.entries(counts).forEach(([k,v]) => { if (v>max) max = v; });
-      // get all with max votes
       const top = Object.entries(counts).filter(([k,v])=>v===max).map(a=>a[0]);
       let eliminatedId;
       if (top.length === 0){
-        // no votes -> random alive
         const alive = game.players.filter(p=>p.alive);
         eliminatedId = alive[Math.floor(Math.random()*alive.length)].id;
       } else if (top.length === 1){
         eliminatedId = top[0];
       } else {
-        // tie -> random among tied
         eliminatedId = top[Math.floor(Math.random()*top.length)];
       }
       const eliminated = game.players.find(p=>p.id===eliminatedId);
       eliminated.alive = false;
       game.eliminatedHistory.push({id:eliminatedId,name:eliminated.name,role:eliminated.role,word: eliminated.word});
       pushHistory(`${eliminated.name} a été éliminé (${roleReadable(eliminated.role)})`);
-      // show elimination result
       showEliminationResult(eliminated);
       updateSummary();
     }
@@ -484,7 +595,7 @@ Marie</code>
       if (player.role === "mr_white"){
         const info = document.createElement("div");
         info.style.marginTop = "12px";
-        info.innerHTML = `<div class="small muted">Mr White éliminé : vous pouvez tenter de deviner le mot des undercovers. Si vous devinez exactement le bon mot, Mr White gagne la partie.</div>`;
+        info.innerHTML = `<div class="small muted">Mr White éliminé : vous pouvez tenter de deviner le mot des Undercover. Si vous devinez exactement le bon mot, Mr White gagne la partie.</div>`;
         const input = document.createElement("input");
         input.placeholder = "Entrez votre devinette ici";
         input.style.marginTop = "8px";
@@ -496,14 +607,12 @@ Marie</code>
           if (!guess) { alert("Entrez un mot."); return; }
           const undercoverWord = game.wordPair[1].toLowerCase();
           if (guess.toLowerCase() === undercoverWord){
-            // Mr White wins
             showResult(`Mr White (${player.name}) a deviné correctement "${guess}" — MR WHITE GAGNE !`, "mr_white");
             pushHistory(`Mr White (${player.name}) a deviné correctement "${guess}" — MR WHITE WIN`);
             return;
           } else {
             pushHistory(`Mr White (${player.name}) a deviné "${guess}" — incorrect.`);
             alert("Mauvaise devinette. La partie continue.");
-            // reveal role and word and continue game
             container.innerHTML += `<div style="margin-top:10px" class="muted">Mot de l'éliminé : ${player.word}</div>`;
             resultContent.innerHTML = "";
             resultContent.appendChild(container);
@@ -515,12 +624,10 @@ Marie</code>
         info.appendChild(guessBtn);
         container.appendChild(info);
       } else {
-        // show the eliminated word for civs/undercover
         container.innerHTML += `<div style="margin-top:12px">Mot: <strong>${player.role==="undercover" ? game.wordPair[1] : game.wordPair[0]}</strong></div>`;
       }
       resultContent.appendChild(container);
       show(resultSection);
-      // check immediate win (if undercovers all eliminated)
       setTimeout(() => {
         if (checkWin()) return;
       }, 10);
@@ -528,9 +635,8 @@ Marie</code>
 
     continueBtn.addEventListener("click", ()=>{
       hide(resultSection);
-      // after elimination, check win
       if (!checkWin()){
-        // continue: next discussion -> players discuss again
+        // After elimination, continue: reveal phase is not repeated; go to discussion normally.
         show(discussionSection);
       }
     });
@@ -543,20 +649,16 @@ Marie</code>
       const underAlive = alive.filter(p=>p.role==="undercover").length;
       const civAlive = alive.filter(p=>p.role==="citizen").length;
       const mrWhiteAlive = alive.some(p=>p.role==="mr_white" && p.alive);
-      // If undercovers = 0 -> citizens win
       if (underAlive === 0){
         showResult("Tous les Undercover ont été éliminés — Les Citoyens gagnent !", "citizen");
         pushHistory("Citoyens gagnent — tous les undercovers éliminés.");
         return true;
       }
-      // If undercovers >= civs -> undercovers win
       if (underAlive >= civAlive && underAlive > 0){
         showResult("Undercover en supériorité numérique — les Undercover gagnent !", "undercover");
         pushHistory("Undercover gagnent — supériorité numérique.");
         return true;
       }
-      // Mr White win is handled at elimination guess time.
-      // Otherwise, game continues
       updateSummary();
       return false;
     }
@@ -565,7 +667,6 @@ Marie</code>
       resultContent.innerHTML = "";
       const el = document.createElement("div");
       el.innerHTML = `<div style="font-size:20px;font-weight:800">${text}</div>`;
-      // reveal full roles and words
       const full = document.createElement("div");
       full.style.marginTop = "12px";
       full.innerHTML = `<div class="muted">Révélation complète :</div>`;
@@ -599,6 +700,7 @@ Marie</code>
 
     // init default words display
     (function init(){
+      game.wordCategory = "all";
       game.wordPair = pickRandomPair();
       updateCurrentWordsDisplay();
       pushHistory("Page chargée — prêt.");
