@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>MiniGolf HTML5 - Système de Jauges</title>
+    <style>
+        body { background: #333; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #game-container { position: relative; margin-top: 20px; }
+        canvas { background: #2e7d32; border: 5px solid #5d4037; border-radius: 10px; cursor: crosshair; }
+        
+        /* Styles des jauges */
+        .controls { display: flex; gap: 20px; margin-top: 20px; align-items: center; }
+        .gauge-container { background: #555; border: 2px solid #fff; position: relative; overflow: hidden; }
+        
+        #power-gauge-ui { width: 30px; height: 150px; display: flex; flex-direction: column-reverse; }
+        #direction-gauge-ui { width: 150px; height: 30px; }
+        
+        .bar { background: #ffeb3b; position: absolute; }
+        #power-bar { width: 100%; bottom: 0; height: 0%; background: linear-gradient(to top, #4caf50, #ffeb3b, #f44336); }
+        #direction-bar { height: 100%; left: 0; width: 5%; background: #2196f3; }
+        
+        .active { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .label { text-align: center; font-size: 12px; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>MiniGolf : 2 Clics pour Tirer</h1>
+    <p>1er clic : Puissance | 2ème clic : Direction</p>
+
+    <div id="game-container">
+        <canvas id="golfCanvas" width="600" height="400"></canvas>
+    </div>
+
+    <div class="controls">
+        <div>
+            <div class="label">PUISSANCE</div>
+            <div id="power-gauge-ui" class="gauge-container">
+                <div id="power-bar" class="bar"></div>
+            </div>
+        </div>
+        <div>
+            <div class="label">DIRECTION</div>
+            <div id="direction-gauge-ui" class="gauge-container">
+                <div id="direction-bar" class="bar"></div>
+            </div>
+        </div>
+        <button id="resetBtn" onclick="resetBall()" style="display:none; padding: 10px;">Rejouer</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('golfCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // État du jeu
+        let ball = { x: 100, y: 200, r: 10, vx: 0, vy: 0, friction: 0.98 };
+        let hole = { x: 500, y: 200, r: 15 };
+        let obstacle = { x: 300, y: 100, w: 20, h: 200 };
+        
+        let gameState = "WAITING"; // WAITING, POWER, DIRECTION, MOVING, HOLE
+        let powerVal = 0;
+        let powerDir = 1;
+        let dirVal = 50; // 0 à 100 (50 = milieu)
+        let dirSwap = 1;
+
+        // Éléments UI
+        const powerBar = document.getElementById('power-bar');
+        const directionBar = document.getElementById('direction-bar');
+
+        function update() {
+            if (gameState === "POWER") {
+                powerVal += 2 * powerDir;
+                if (powerVal >= 100 || powerVal <= 0) powerDir *= -1;
+                powerBar.style.height = powerVal + "%";
+            } 
+            else if (gameState === "DIRECTION") {
+                dirVal += 2 * dirSwap;
+                if (dirVal >= 100 || dirVal <= 0) dirSwap *= -1;
+                directionBar.style.left = dirVal + "%";
+            }
+            else if (gameState === "MOVING") {
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+                ball.vx *= ball.friction;
+                ball.vy *= ball.friction;
+
+                // Rebond murs
+                if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.vx *= -1;
+                if (ball.y < ball.r || ball.y > canvas.height - ball.r) ball.vy *= -1;
+
+                // Collision obstacle
+                if (ball.x + ball.r > obstacle.x && ball.x - ball.r < obstacle.x + obstacle.w &&
+                    ball.y + ball.r > obstacle.y && ball.y - ball.r < obstacle.y + obstacle.h) {
+                    ball.vx *= -1;
+                }
+
+                // Vérifier Trou
+                let dist = Math.hypot(ball.x - hole.x, ball.y - hole.y);
+                if (dist < hole.r) {
+                    gameState = "HOLE";
+                    ball.vx = 0; ball.vy = 0;
+                    document.getElementById('resetBtn').style.display = "block";
+                }
+
+                // Arrêt de la balle
+                if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1) {
+                    ball.vx = 0; ball.vy = 0;
+                    gameState = "WAITING";
+                }
+            }
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dessiner le trou
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Dessiner l'obstacle
+            ctx.fillStyle = "#5d4037";
+            ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
+
+            // Dessiner la balle
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "#000";
+            ctx.stroke();
+
+            // Ligne de visée (pendant la phase de tir)
+            if (gameState === "DIRECTION" || gameState === "POWER") {
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(ball.x, ball.y);
+                let angle = ((dirVal - 50) * 0.02); // Influence de la jauge horizontale
+                ctx.lineTo(ball.x + 50, ball.y + (angle * 100));
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        window.addEventListener('mousedown', () => {
+            if (gameState === "WAITING") {
+                gameState = "POWER";
+                document.getElementById('power-gauge-ui').classList.add('active');
+            } 
+            else if (gameState === "POWER") {
+                gameState = "DIRECTION";
+                document.getElementById('power-gauge-ui').classList.remove('active');
+                document.getElementById('direction-gauge-ui').classList.add('active');
+            }
+            else if (gameState === "DIRECTION") {
+                document.getElementById('direction-gauge-ui').classList.remove('active');
+                shoot();
+            }
+        });
+
+        function shoot() {
+            const force = powerVal / 8;
+            const angle = (dirVal - 50) * 0.02; // Conversion de la jauge en angle
+            
+            ball.vx = force;
+            ball.vy = angle * force;
+            gameState = "MOVING";
+        }
+
+        function resetBall() {
+            ball.x = 100; ball.y = 200;
+            ball.vx = 0; ball.vy = 0;
+            gameState = "WAITING";
+            powerVal = 0; dirVal = 50;
+            document.getElementById('resetBtn').style.display = "none";
+        }
+
+        update();
+    </script>
+</body>
+</html>
