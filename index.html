@@ -1,87 +1,712 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mes Jeux</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f8ff;
-            color: #333;
-        }
-        h1 {
-            color: #1a73e8;
-            margin-bottom: 40px;
-            font-size: 2.5em;
-        }
-        .game-container {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            max-width: 800px;
-            width: 100%;
-        }
-        .game-link {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            text-align: center;
-            background-color: #1a73e8;
-            color: white;
-            text-decoration: none;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: bold;
-            transition: background-color 0.3s, transform 0.2s;
-            height: 120px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        .game-link:hover {
-            background-color: #0d47a1;
-            transform: translateY(-5px);
-        }
-        .game-icon {
-            font-size: 36px;
-            margin-bottom: 10px;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Undercover — Jeu pass-and-play</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#38bdf8; --muted:#94a3b8;
+      --win:#10b981; --lose:#ef4444; --glass: rgba(255,255,255,0.03);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071029 0%, #071823 100%);color:#e6eef8;}
+    .container{max-width:980px;margin:28px auto;padding:20px;}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    header h1{font-size:20px;margin:0}
+    .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+    .grid{display:grid;gap:12px}
+    .cols-2{grid-template-columns:1fr 1fr}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"], input[type="number"], select, textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit}
+    textarea{resize:vertical}
+    button{background:var(--accent);color:#04202b;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    .muted{color:var(--muted);font-size:13px}
+    ul.players{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px}
+    ul.players li{background:rgba(255,255,255,0.02);padding:8px 10px;border-radius:10px;min-width:120px;display:flex;justify-content:space-between;align-items:center}
+    .small{font-size:12px;color:var(--muted)}
+    .center{display:flex;align-items:center;justify-content:center}
+    .hidden{display:none}
+    .reveal-card{padding:24px;text-align:center;border-radius:12px}
+    .word{font-size:28px;font-weight:700;margin:14px 0;color:var(--accent)}
+    .role-tag{font-weight:700;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.02)}
+    .timer{font-weight:800;font-size:28px;color:var(--accent)}
+    .vote-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+    .player-btn{padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);cursor:pointer}
+    .history{max-height:200px;overflow:auto;padding:8px;background:rgba(255,255,255,0.01);border-radius:8px}
+    .result{padding:20px;border-radius:12px;text-align:center}
+    footer{margin-top:18px;display:flex;gap:8px;justify-content:flex-end}
+    .neutral-screen{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;padding:30px}
+    .neutral-name{font-weight:800;font-size:22px}
+    .neutral-note{color:var(--muted);font-size:13px;text-align:center}
+    @media (max-width:720px){header h1{font-size:18px}.cols-2{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-    <h1>Bienvenue sur ma page de jeux !</h1>
-    <div class="game-container">
-        <a href="Morpions.html" class="game-link" onclick="window.location.href='Morpions.html'; return false;">
-            <div class="game-icon">❌⭕</div>
-            <div>Morpion</div>
-        </a>
-        <a href="Solitaire.html" class="game-link" onclick="window.location.href='Solitaire.html'; return false;">
-            <div class="game-icon">🂡</div>
-            <div>Solitaire</div>
-        </a>
-        <a href="Puissance%204.html" class="game-link" onclick="window.location.href='Puissance%204.html'; return false;">
-            <div class="game-icon">🟥🟨</div>
-            <div>Puissance 4</div>
-        </a>
-        <a href="Dames.html" class="game-link" onclick="window.location.href='Dames.html'; return false;">
-            <div class="game-icon">♟️</div>
-            <div>Dames</div>
-        </a>
-        <a href="Minigolf.html" class="game-link" onclick="window.location.href='Minigolf.html'; return false;">
-            <div class="game-icon">⛳</div>
-            <div>Minigolf</div>
-        </a>
-        <a href="undercover2.html" class="game-link" onclick="window.location.href='undercover2.html'; return false;">
-            <div class="game-icon">🕵️‍♂️</div>
-            <div>Undercover 2</div>
-        </a>
-    </div>
+  <div class="container">
+    <header>
+      <h1>Undercover — Jeu local (pass-and-play)</h1>
+      <div class="muted">Interface neutre pour la révélation privée • Français</div>
+    </header>
+
+    <!-- SETUP -->
+    <section id="setupSection" class="card">
+      <div class="grid cols-2">
+        <div>
+          <label>Nombre de joueurs</label>
+          <input id="playerCount" type="number" min="3" max="20" value="6" />
+        </div>
+        <div>
+          <label>Nombre d'Undercover</label>
+          <input id="undercoverCount" type="number" min="1" max="5" value="1" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px" class="grid cols-2">
+        <div>
+          <label>Inclure Mr White ?</label>
+          <select id="includeMrWhite">
+            <option value="yes" selected>Oui</option>
+            <option value="no">Non</option>
+          </select>
+        </div>
+        <div>
+          <label>Durée de la discussion (secondes, 0 = sans timer)</label>
+          <input id="discussionTime" type="number" min="0" max="600" value="90" />
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Catégorie de mots</label>
+        <select id="wordCategory">
+          <option value="all">Toutes catégories</option>
+        </select>
+      </div>
+
+      <div style="margin-top:12px">
+        <label>Noms des joueurs (facultatif) — un par ligne. Si vide, des noms générés seront utilisés.</label>
+        <textarea id="playerNames" rows="5" style="background:var(--glass);border:1px solid rgba(255,255,255,0.03);color:inherit"></textarea>
+        <div class="muted" style="margin-top:8px">Exemple :
+          <code>Alex
+Sam
+Marie</code>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <button id="startBtn">Démarrer la partie</button>
+        <button id="randomWordsBtn" class="ghost">Changer de paire de mots</button>
+        <div class="muted" id="currentWords" style="margin-left:8px"></div>
+      </div>
+    </section>
+
+    <!-- PASS-AND-PLAY REVEAL -->
+    <section id="revealSection" class="card hidden" style="margin-top:14px">
+      <!-- Neutral prompt screen -->
+      <div id="neutralPrompt" class="neutral-screen">
+        <div class="muted">Donnez l'appareil à</div>
+        <div class="neutral-name" id="promptPlayerName">Joueur</div>
+        <div class="neutral-note">Assurez-vous que les autres regardent ailleurs. Appuyez sur "Voir mon rôle/mot" pour afficher vos informations.</div>
+        <div style="display:flex;gap:8px">
+          <button id="viewWordBtn">Voir mon rôle / mot</button>
+          <button id="skipRevealBtn" class="ghost">Passer (ne pas afficher)</button>
+        </div>
+        <div class="muted" id="nextOwnerNote">Prochain : —</div>
+      </div>
+
+      <!-- Actual private reveal -->
+      <div id="privateReveal" class="reveal-card hidden">
+        <div class="muted">Joueur <span id="revealPlayerName"></span></div>
+        <div style="margin-top:8px">
+          <div class="role-tag" id="revealRole">Rôle</div>
+        </div>
+        <div id="revealWord" class="word"></div>
+        <div class="muted" id="revealHint" style="font-size:13px"></div>
+        <div style="margin-top:12px">
+          <button id="hideAndNextBtn">Cacher et suivant</button>
+        </div>
+      </div>
+
+      <div style="margin-top:10px" class="muted">Passez l'appareil au joueur indiqué et suivez les instructions à l'écran.</div>
+    </section>
+
+    <!-- DISCUSSION -->
+    <section id="discussionSection" class="card hidden" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="muted">Phase de discussion</div>
+          <div class="small">Tous les joueurs discutent et décrivent leurs mots. Quand la discussion est terminée, passer au vote.</div>
+        </div>
+        <div class="center" style="gap:12px">
+          <div class="timer" id="discussionTimer">--</div>
+          <button id="startVoteBtn">Commencer le vote</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VOTING -->
+    <section id="voteSection" class="card hidden" style="margin-top:14px">
+      <div class="muted">Votez pour éliminer un joueur (vote public sur un seul appareil) — chaque joueur appuie sur le nom de la personne qu'il accuse.</div>
+      <div style="margin-top:12px" class="vote-grid" id="voteGrid"></div>
+      <div style="margin-top:12px">
+        <button id="tallyBtn">Terminer le vote et éliminer</button>
+      </div>
+    </section>
+
+    <!-- ELIMINATION / RESULT -->
+    <section id="resultSection" class="card hidden" style="margin-top:14px">
+      <div id="resultContent" class="result"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+        <button id="continueBtn" class="ghost">Continuer</button>
+        <button id="restartBtn">Redémarrer la partie</button>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="card" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>Historique</strong> <span class="muted">éliminations & état</span></div>
+        <div class="small muted" id="gameStateSummary"></div>
+      </div>
+      <div style="margin-top:8px" class="history" id="historyLog">
+        <div class="muted">Aucune action pour le moment.</div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="muted">Undercover — Pass-and-play • Interface privée améliorée</div>
+    </footer>
+  </div>
+
+  <script>
+    /****************************************
+     * Undercover - JS logic (single file)
+     * Modifications:
+     * - Base de mots plus riche et catégorisée
+     * - Interface neutre pour la révélation (prompt -> reveal -> cacher)
+     * - Indication du prochain propriétaire du mot
+     ****************************************/
+
+    // Riche base de mots organisée par catégorie (chaque entrée = [citizenWord, undercoverWord])
+    const WORD_CATEGORIES = {
+      "Aliments": [
+        ["Pomme","Poire"], ["Banane","Ananas"], ["Fromage","Yaourt"],
+        ["Pain","Brioche"], ["Riz","Quinoa"], ["Tomate","Poivron"],
+        ["Croissant","Pain au chocolat"], ["Saumon","Thon"], ["Glace","Sorbet"]
+      ],
+      "Animaux": [
+        ["Chien","Loup"], ["Chat","Lynx"], ["Cheval","Zèbre"],
+        ["Poisson","Dauphin"], ["Aigle","Faucon"], ["Vache","Buffle"],
+        ["Singe","Gorille"], ["Lapin","Hérisson"], ["Ours","Panda"]
+      ],
+      "Objets": [
+        ["Chaise","Fauteuil"], ["Montre","Horloge"], ["Livre","Magazine"],
+        ["Téléphone","Radio"], ["Stylo","Crayon"], ["Lampe","Bougie"],
+        ["Bouteille","Verre"], ["Clé","Serrure"], ["Couteau","Fourchette"]
+      ],
+      "Géographie": [
+        ["Montagne","Colline"], ["Rivière","Océan"], ["Île","Péninsule"],
+        ["Ville","Village"], ["Forêt","Jungle"], ["Désert","Steppe"],
+        ["Lac","Étang"], ["Plage","Falaises"], ["Volcan","Geyser"]
+      ],
+      "Loisirs": [
+        ["Piano","Guitare"], ["Football","Rugby"], ["Peinture","Sculpture"],
+        ["Lecture","Écriture"], ["Danse","Théâtre"], ["Bricolage","Jardinage"],
+        ["Jeu vidéo","Jeu de société"], ["Photographie","Cinéma"], ["Yoga","Pilates"]
+      ],
+      "Divers": [
+        ["Lune","Soleil"], ["Café","Thé"], ["Voiture","Camion"],
+        ["Papier","Carton"], ["Rose","Tulipe"], ["École","Université"],
+        ["Chapeau","Casquette"], ["Valise","Sac à dos"], ["Ordinateur","Tablette"]
+      ]
+    };
+
+    // Flatten all pairs for "all" category
+    function getPairsForCategory(cat){
+      if (!cat || cat === "all") {
+        return Object.values(WORD_CATEGORIES).flat();
+      }
+      return WORD_CATEGORIES[cat] || [];
+    }
+
+    // UI refs
+    const setupSection = document.getElementById("setupSection");
+    const revealSection = document.getElementById("revealSection");
+    const discussionSection = document.getElementById("discussionSection");
+    const voteSection = document.getElementById("voteSection");
+    const resultSection = document.getElementById("resultSection");
+    const historyLog = document.getElementById("historyLog");
+    const currentWordsEl = document.getElementById("currentWords");
+    const gameStateSummary = document.getElementById("gameStateSummary");
+
+    const playerCountInput = document.getElementById("playerCount");
+    const undercoverCountInput = document.getElementById("undercoverCount");
+    const includeMrWhiteInput = document.getElementById("includeMrWhite");
+    const discussionTimeInput = document.getElementById("discussionTime");
+    const playerNamesInput = document.getElementById("playerNames");
+    const startBtn = document.getElementById("startBtn");
+    const randomWordsBtn = document.getElementById("randomWordsBtn");
+    const wordCategorySelect = document.getElementById("wordCategory");
+
+    // reveal UI
+    const neutralPrompt = document.getElementById("neutralPrompt");
+    const privateReveal = document.getElementById("privateReveal");
+    const promptPlayerName = document.getElementById("promptPlayerName");
+    const nextOwnerNote = document.getElementById("nextOwnerNote");
+    const viewWordBtn = document.getElementById("viewWordBtn");
+    const skipRevealBtn = document.getElementById("skipRevealBtn");
+    const revealPlayerName = document.getElementById("revealPlayerName");
+    const revealRole = document.getElementById("revealRole");
+    const revealWord = document.getElementById("revealWord");
+    const revealHint = document.getElementById("revealHint");
+    const hideAndNextBtn = document.getElementById("hideAndNextBtn");
+
+    const discussionTimerEl = document.getElementById("discussionTimer");
+    const startVoteBtn = document.getElementById("startVoteBtn");
+
+    const voteGrid = document.getElementById("voteGrid");
+    const tallyBtn = document.getElementById("tallyBtn");
+
+    const resultContent = document.getElementById("resultContent");
+    const continueBtn = document.getElementById("continueBtn");
+    const restartBtn = document.getElementById("restartBtn");
+
+    // GAME STATE
+    let game = {
+      players: [], // {id,name,role,word,alive:true}
+      wordPair: null,
+      wordCategory: "all",
+      undercoverCount: 1,
+      includeMrWhite: true,
+      discussionTime: 90,
+      revealIndex: 0, // for pass-and-play (index of next player to reveal)
+      revealStage: "prompt", // "prompt" or "reveal"
+      votes: {}, // playerId -> votedId (during voting)
+      eliminatedHistory: [],
+      timerInterval: null
+    };
+
+    // Populate category select
+    (function populateCategories(){
+      const cats = Object.keys(WORD_CATEGORIES);
+      cats.forEach(c=>{
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        wordCategorySelect.appendChild(opt);
+      });
+    })();
+
+    function pickRandomPair(){
+      const pairs = getPairsForCategory(game.wordCategory);
+      if (!pairs.length) {
+        // fallback to all
+        const all = getPairsForCategory("all");
+        return all[Math.floor(Math.random()*all.length)];
+      }
+      return pairs[Math.floor(Math.random()*pairs.length)];
+    }
+
+    // UI helpers
+    function show(el){ el.classList.remove("hidden"); }
+    function hide(el){ el.classList.add("hidden"); }
+
+    // Start game setup -> assign roles
+    startBtn.addEventListener("click", () => {
+      const count = parseInt(playerCountInput.value,10);
+      const ucount = parseInt(undercoverCountInput.value,10);
+      const includeMr = includeMrWhiteInput.value === "yes";
+      const dTime = Math.max(0, parseInt(discussionTimeInput.value,10) || 0);
+      const cat = wordCategorySelect.value || "all";
+
+      if (count < 3) { alert("Il faut au moins 3 joueurs."); return; }
+      if (ucount < 1 || ucount >= count) { alert("Nombre d'undercover invalide."); return; }
+
+      game.undercoverCount = ucount;
+      game.includeMrWhite = includeMr;
+      game.discussionTime = dTime;
+      game.wordCategory = cat;
+
+      // parse names
+      const raw = playerNamesInput.value.trim();
+      let names = [];
+      if (raw.length) {
+        names = raw.split("\n").map(s=>s.trim()).filter(Boolean);
+      }
+      while (names.length < count) names.push(generateName(names.length+1));
+      names = names.slice(0,count);
+
+      // set words
+      game.wordPair = pickRandomPair();
+
+      // build players
+      game.players = names.map((n,i)=>({
+        id: i.toString(),
+        name: n,
+        role: "citizen",
+        word: "",
+        alive: true
+      }));
+
+      // assign undercovers
+      const shuffledIdx = shuffle(Array.from(Array(count).keys()));
+      for (let i=0;i<game.undercoverCount;i++){
+        const idx = shuffledIdx[i];
+        game.players[idx].role = "undercover";
+      }
+      // assign mr white if enabled (choose one not already undercover)
+      if (game.includeMrWhite) {
+        const remaining = game.players.filter(p=>p.role==="citizen");
+        if (remaining.length>0){
+          const pick = remaining[Math.floor(Math.random()*remaining.length)];
+          pick.role = "mr_white";
+        }
+      }
+      // assign words
+      const [civilWord, undercoverWord] = game.wordPair;
+      game.players.forEach(p=>{
+        if (p.role === "citizen") p.word = civilWord;
+        else if (p.role === "undercover") p.word = undercoverWord;
+        else if (p.role === "mr_white") p.word = "—";
+      });
+
+      // reset other state
+      game.revealIndex = 0;
+      game.revealStage = "prompt";
+      game.votes = {};
+      game.eliminatedHistory = [];
+      updateCurrentWordsDisplay();
+      pushHistory("Partie démarrée — mots choisis.");
+
+      // move to reveal phase (neutral pass-and-play)
+      hide(setupSection);
+      show(revealSection);
+      showRevealForIndex(game.revealIndex);
+      updateSummary();
+    });
+
+    randomWordsBtn.addEventListener("click",()=>{
+      game.wordPair = pickRandomPair();
+      updateCurrentWordsDisplay();
+      pushHistory("Paire de mots changée manuellement.");
+    });
+
+    wordCategorySelect.addEventListener("change", ()=>{
+      game.wordCategory = wordCategorySelect.value || "all";
+      game.wordPair = pickRandomPair();
+      updateCurrentWordsDisplay();
+    });
+
+    function updateCurrentWordsDisplay(){
+      // For setup it's okay to show the pair for the host, but keep it subtle.
+      if (!game.wordPair) game.wordPair = pickRandomPair();
+      currentWordsEl.textContent = `Catégorie: ${game.wordCategory} • (Paire prête)`;
+    }
+
+    function generateName(i){
+      const pool = ["Alex","Sam","Marie","Jordan","Léa","Max","Romain","Nora","Kim","Eli","Maya","Tom","Lina"];
+      return pool[(i-1)%pool.length] + (i>pool.length ? " "+i : "");
+    }
+
+    function shuffle(arr){ return arr.map(a=>[Math.random(),a]).sort((a,b)=>a[0]-b[0]).map(a=>a[1]); }
+
+    // REVEAL (pass-and-play) - neutral prompt then private reveal
+    function showRevealForIndex(idx){
+      const p = game.players[idx];
+      if (!p) {
+        // all revealed -> go to discussion
+        hide(revealSection);
+        show(discussionSection);
+        startDiscussionTimerIfNeeded();
+        return;
+      }
+      // Prompt stage: ask to pass device to p
+      game.revealStage = "prompt";
+      promptPlayerName.textContent = p.name;
+      // indicate next owner (if any)
+      const next = game.players[idx+1];
+      nextOwnerNote.textContent = next ? `Prochain : ${next.name}` : `Prochain : Discussion / Vote`;
+      // hide private reveal, show neutral prompt
+      show(neutralPrompt);
+      hide(privateReveal);
+    }
+
+    // When the player chooses to view his role/word
+    viewWordBtn.addEventListener("click", ()=>{
+      const p = game.players[game.revealIndex];
+      if (!p) return;
+      game.revealStage = "reveal";
+      // show private reveal UI with role and word (word hidden for mr white)
+      revealPlayerName.textContent = p.name;
+      revealRole.textContent = p.role === "citizen" ? "Citoyen" : (p.role === "undercover" ? "Undercover" : "Mr White");
+      if (p.role === "mr_white") {
+        revealWord.textContent = "—";
+        revealHint.textContent = "Mr White : vous ne recevez pas de mot similaire. Si vous êtes éliminé, vous pourrez deviner le mot des Undercover.";
+      } else {
+        // Display the actual word
+        revealWord.textContent = p.word;
+        revealHint.textContent = "Gardez le mot secret. Donnez des indices lors de la discussion sans citer le mot exact.";
+      }
+      // UI transitions
+      hide(neutralPrompt);
+      show(privateReveal);
+    });
+
+    // Option to skip revealing (le joueur préfère ne pas afficher)
+    skipRevealBtn.addEventListener("click", ()=>{
+      pushHistory(`${game.players[game.revealIndex].name} a choisi de ne pas afficher son mot.`);
+      advanceRevealIndexAndShowNext();
+    });
+
+    hideAndNextBtn.addEventListener("click", ()=>{
+      // Hide current and go to next prompt (or discussion)
+      pushHistory(`${game.players[game.revealIndex].name} a vu son rôle/mot.`);
+      advanceRevealIndexAndShowNext();
+    });
+
+    function advanceRevealIndexAndShowNext(){
+      game.revealIndex++;
+      if (game.revealIndex >= game.players.length) {
+        // end reveal phase
+        hide(revealSection);
+        show(discussionSection);
+        startDiscussionTimerIfNeeded();
+      } else {
+        showRevealForIndex(game.revealIndex);
+      }
+    }
+
+    // DISCUSSION TIMER
+    function startDiscussionTimerIfNeeded(){
+      const t = game.discussionTime;
+      if (t <= 0) {
+        discussionTimerEl.textContent = "--";
+      } else {
+        let remaining = t;
+        discussionTimerEl.textContent = formatTime(remaining);
+        if (game.timerInterval) clearInterval(game.timerInterval);
+        game.timerInterval = setInterval(()=>{
+          remaining--;
+          discussionTimerEl.textContent = formatTime(remaining);
+          if (remaining<=0){
+            clearInterval(game.timerInterval);
+            discussionTimerEl.textContent = "00:00";
+            pushHistory("Le timer s'est terminé.");
+            // timer finished — manual start of vote remains
+          }
+        },1000);
+      }
+      show(discussionSection);
+    }
+
+    function formatTime(s){
+      const mm = String(Math.floor(s/60)).padStart(2,'0');
+      const ss = String(s%60).padStart(2,'0');
+      return `${mm}:${ss}`;
+    }
+
+    startVoteBtn.addEventListener("click",()=>{
+      if (game.timerInterval) { clearInterval(game.timerInterval); game.timerInterval = null; }
+      prepareVote();
+      hide(discussionSection);
+      show(voteSection);
+    });
+
+    // VOTING
+    function prepareVote(){
+      voteGrid.innerHTML = "";
+      game.votes = {}; // reset
+      const alive = game.players.filter(p=>p.alive);
+      alive.forEach(v => {
+        const card = document.createElement("div");
+        card.className = "player-btn";
+        card.dataset.id = v.id;
+        card.innerHTML = `<div style="font-weight:700">${v.name}</div><div class="small muted">Cliquez pour voter</div>`;
+        card.addEventListener("click", ()=> handleVote(v.id));
+        voteGrid.appendChild(card);
+      });
+      pushHistory("Phase de vote commencée.");
+    }
+
+    // In this local implementation votes are collected as presses (anyone can press)
+    function handleVote(targetId){
+      const voterName = prompt("Entrez le nom du joueur qui vote (exactement comme dans la liste) :");
+      if (!voterName) return;
+      const voter = game.players.find(p => p.name === voterName && p.alive);
+      if (!voter) { alert("Joueur introuvable ou déjà éliminé. Tapez exactement le nom affiché."); return; }
+      // record vote
+      game.votes[voter.id] = targetId;
+      pushHistory(`${voter.name} a voté contre ${game.players.find(p=>p.id===targetId).name}`);
+      updateVoteUI();
+    }
+
+    function updateVoteUI(){
+      const counts = {};
+      Object.values(game.votes).forEach(t => counts[t] = (counts[t]||0)+1);
+      Array.from(voteGrid.children).forEach(card => {
+        const id = card.dataset.id;
+        const cnt = counts[id] || 0;
+        card.querySelector(".small").textContent = cnt ? `${cnt} vote(s)` : "Cliquez pour voter";
+      });
+    }
+
+    tallyBtn.addEventListener("click",()=>{
+      const alive = game.players.filter(p=>p.alive);
+      const expected = alive.length;
+      const votesCast = Object.keys(game.votes).length;
+      if (votesCast < expected) {
+        const ok = confirm(`${votesCast}/${expected} votes enregistrés. Continuer et éliminer quand même ?`);
+        if (!ok) return;
+      }
+      tallyAndEliminate();
+    });
+
+    function tallyAndEliminate(){
+      const counts = {};
+      Object.values(game.votes).forEach(t => counts[t] = (counts[t]||0)+1);
+      let max = -1;
+      Object.entries(counts).forEach(([k,v]) => { if (v>max) max = v; });
+      const top = Object.entries(counts).filter(([k,v])=>v===max).map(a=>a[0]);
+      let eliminatedId;
+      if (top.length === 0){
+        const alive = game.players.filter(p=>p.alive);
+        eliminatedId = alive[Math.floor(Math.random()*alive.length)].id;
+      } else if (top.length === 1){
+        eliminatedId = top[0];
+      } else {
+        eliminatedId = top[Math.floor(Math.random()*top.length)];
+      }
+      const eliminated = game.players.find(p=>p.id===eliminatedId);
+      eliminated.alive = false;
+      game.eliminatedHistory.push({id:eliminatedId,name:eliminated.name,role:eliminated.role,word: eliminated.word});
+      pushHistory(`${eliminated.name} a été éliminé (${roleReadable(eliminated.role)})`);
+      showEliminationResult(eliminated);
+      updateSummary();
+    }
+
+    function roleReadable(r){ return r==="citizen" ? "Citoyen" : (r==="undercover" ? "Undercover" : "Mr White"); }
+
+    // ELIMINATION HANDLING (Mr White special guess)
+    function showEliminationResult(player){
+      resultContent.innerHTML = "";
+      const container = document.createElement("div");
+      container.innerHTML = `<div style="font-weight:800;font-size:18px">${player.name} a été éliminé</div><div class="muted" style="margin-top:6px">Rôle : ${roleReadable(player.role)}</div>`;
+      if (player.role === "mr_white"){
+        const info = document.createElement("div");
+        info.style.marginTop = "12px";
+        info.innerHTML = `<div class="small muted">Mr White éliminé : vous pouvez tenter de deviner le mot des Undercover. Si vous devinez exactement le bon mot, Mr White gagne la partie.</div>`;
+        const input = document.createElement("input");
+        input.placeholder = "Entrez votre devinette ici";
+        input.style.marginTop = "8px";
+        const guessBtn = document.createElement("button");
+        guessBtn.textContent = "Valider la devinette";
+        guessBtn.style.marginLeft = "8px";
+        guessBtn.addEventListener("click", () => {
+          const guess = input.value.trim();
+          if (!guess) { alert("Entrez un mot."); return; }
+          const undercoverWord = game.wordPair[1].toLowerCase();
+          if (guess.toLowerCase() === undercoverWord){
+            showResult(`Mr White (${player.name}) a deviné correctement "${guess}" — MR WHITE GAGNE !`, "mr_white");
+            pushHistory(`Mr White (${player.name}) a deviné correctement "${guess}" — MR WHITE WIN`);
+            return;
+          } else {
+            pushHistory(`Mr White (${player.name}) a deviné "${guess}" — incorrect.`);
+            alert("Mauvaise devinette. La partie continue.");
+            container.innerHTML += `<div style="margin-top:10px" class="muted">Mot de l'éliminé : ${player.word}</div>`;
+            resultContent.innerHTML = "";
+            resultContent.appendChild(container);
+            show(resultSection);
+            return;
+          }
+        });
+        info.appendChild(input);
+        info.appendChild(guessBtn);
+        container.appendChild(info);
+      } else {
+        container.innerHTML += `<div style="margin-top:12px">Mot: <strong>${player.role==="undercover" ? game.wordPair[1] : game.wordPair[0]}</strong></div>`;
+      }
+      resultContent.appendChild(container);
+      show(resultSection);
+      setTimeout(() => {
+        if (checkWin()) return;
+      }, 10);
+    }
+
+    continueBtn.addEventListener("click", ()=>{
+      hide(resultSection);
+      if (!checkWin()){
+        // After elimination, continue: reveal phase is not repeated; go to discussion normally.
+        show(discussionSection);
+      }
+    });
+
+    restartBtn.addEventListener("click", ()=> location.reload());
+
+    // WIN CONDITIONS
+    function checkWin(){
+      const alive = game.players.filter(p=>p.alive);
+      const underAlive = alive.filter(p=>p.role==="undercover").length;
+      const civAlive = alive.filter(p=>p.role==="citizen").length;
+      const mrWhiteAlive = alive.some(p=>p.role==="mr_white" && p.alive);
+      if (underAlive === 0){
+        showResult("Tous les Undercover ont été éliminés — Les Citoyens gagnent !", "citizen");
+        pushHistory("Citoyens gagnent — tous les undercovers éliminés.");
+        return true;
+      }
+      if (underAlive >= civAlive && underAlive > 0){
+        showResult("Undercover en supériorité numérique — les Undercover gagnent !", "undercover");
+        pushHistory("Undercover gagnent — supériorité numérique.");
+        return true;
+      }
+      updateSummary();
+      return false;
+    }
+
+    function showResult(text, winnerRole){
+      resultContent.innerHTML = "";
+      const el = document.createElement("div");
+      el.innerHTML = `<div style="font-size:20px;font-weight:800">${text}</div>`;
+      const full = document.createElement("div");
+      full.style.marginTop = "12px";
+      full.innerHTML = `<div class="muted">Révélation complète :</div>`;
+      const list = document.createElement("ul");
+      list.style.listStyle="none";list.style.padding="0";
+      game.players.forEach(p=>{
+        const li = document.createElement("li");
+        li.style.padding="6px 0";
+        li.innerHTML = `<strong>${p.name}</strong> — ${roleReadable(p.role)} — Mot: <em>${p.role==="mr_white" ? "—" : p.word}</em> ${p.alive ? '<span class="small muted"> (vivant)</span>' : '<span class="small muted"> (éliminé)</span>'}`;
+        list.appendChild(li);
+      });
+      full.appendChild(list);
+      el.appendChild(full);
+      resultContent.appendChild(el);
+      show(resultSection);
+    }
+
+    // HISTORY logging
+    function pushHistory(text){
+      const t = document.createElement("div");
+      t.style.padding="8px 0";
+      t.innerHTML = `<div style="font-size:13px">${new Date().toLocaleTimeString()} — ${text}</div>`;
+      historyLog.prepend(t);
+    }
+
+    function updateSummary(){
+      const alive = game.players.filter(p=>p.alive).length;
+      const underAlive = game.players.filter(p=>p.alive && p.role==="undercover").length;
+      gameStateSummary.textContent = `${alive} en vie • Undercover: ${underAlive}`;
+    }
+
+    // init default words display
+    (function init(){
+      game.wordCategory = "all";
+      game.wordPair = pickRandomPair();
+      updateCurrentWordsDisplay();
+      pushHistory("Page chargée — prêt.");
+      updateSummary();
+    })();
+
+  </script>
 </body>
 </html>
