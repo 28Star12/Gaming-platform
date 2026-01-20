@@ -115,7 +115,7 @@ Marie</code>
         <div class="muted" id="nextOwnerNote">Prochain : —</div>
       </div>
 
-      <!-- Actual private reveal -->
+      <!-- Actual private reveal (player sees their word and can confirm they chose it) -->
       <div id="privateReveal" class="reveal-card hidden">
         <div class="muted">Joueur <span id="revealPlayerName"></span></div>
         <div style="margin-top:8px">
@@ -124,7 +124,17 @@ Marie</code>
         <div id="revealWord" class="word"></div>
         <div class="muted" id="revealHint" style="font-size:13px"></div>
         <div style="margin-top:12px">
-          <button id="hideAndNextBtn">Cacher et suivant</button>
+          <button id="confirmChoiceBtn">J'ai choisi (suivant)</button>
+        </div>
+      </div>
+
+      <!-- New: intermediate confirmation / waiting screen between players -->
+      <div id="choiceConfirmed" class="neutral-screen hidden">
+        <div class="muted">Mot enregistré pour</div>
+        <div class="neutral-name" id="confirmedPlayerName">Joueur</div>
+        <div class="neutral-note">Passez l'appareil. Appuyez sur "Suivant" pour le joueur suivant.</div>
+        <div style="display:flex;gap:8px">
+          <button id="confirmNextBtn">Suivant</button>
         </div>
       </div>
 
@@ -183,9 +193,8 @@ Marie</code>
     /****************************************
      * Undercover - JS logic (single file)
      * Modifications:
-     * - Base de mots plus riche et catégorisée
-     * - Interface neutre pour la révélation (prompt -> reveal -> cacher)
-     * - Indication du prochain propriétaire du mot
+     * - Ajout d'une page d'attente/confirmation entre les révélations de mots.
+     * - Flux : prompt -> reveal -> confirmer (Mot enregistré) -> suivant
      ****************************************/
 
     // Riche base de mots organisée par catégorie (chaque entrée = [citizenWord, undercoverWord])
@@ -252,6 +261,7 @@ Marie</code>
     // reveal UI
     const neutralPrompt = document.getElementById("neutralPrompt");
     const privateReveal = document.getElementById("privateReveal");
+    const choiceConfirmed = document.getElementById("choiceConfirmed");
     const promptPlayerName = document.getElementById("promptPlayerName");
     const nextOwnerNote = document.getElementById("nextOwnerNote");
     const viewWordBtn = document.getElementById("viewWordBtn");
@@ -260,7 +270,9 @@ Marie</code>
     const revealRole = document.getElementById("revealRole");
     const revealWord = document.getElementById("revealWord");
     const revealHint = document.getElementById("revealHint");
-    const hideAndNextBtn = document.getElementById("hideAndNextBtn");
+    const confirmChoiceBtn = document.getElementById("confirmChoiceBtn");
+    const confirmedPlayerName = document.getElementById("confirmedPlayerName");
+    const confirmNextBtn = document.getElementById("confirmNextBtn");
 
     const discussionTimerEl = document.getElementById("discussionTimer");
     const startVoteBtn = document.getElementById("startVoteBtn");
@@ -281,7 +293,7 @@ Marie</code>
       includeMrWhite: true,
       discussionTime: 90,
       revealIndex: 0, // for pass-and-play (index of next player to reveal)
-      revealStage: "prompt", // "prompt" or "reveal"
+      revealStage: "prompt", // "prompt" or "reveal" or "confirmed"
       votes: {}, // playerId -> votedId (during voting)
       eliminatedHistory: [],
       timerInterval: null
@@ -320,8 +332,8 @@ Marie</code>
       const dTime = Math.max(0, parseInt(discussionTimeInput.value,10) || 0);
       const cat = wordCategorySelect.value || "all";
 
-      if (count < 3) { alert("Il faut au moins 3 joueurs."); return; }
-      if (ucount < 1 || ucount >= count) { alert("Nombre d'undercover invalide."); return; }
+      if (Number.isNaN(count) || count < 3) { alert("Il faut au moins 3 joueurs."); return; }
+      if (Number.isNaN(ucount) || ucount < 1 || ucount >= count) { alert("Nombre d'undercover invalide."); return; }
 
       game.undercoverCount = ucount;
       game.includeMrWhite = includeMr;
@@ -411,7 +423,7 @@ Marie</code>
 
     function shuffle(arr){ return arr.map(a=>[Math.random(),a]).sort((a,b)=>a[0]-b[0]).map(a=>a[1]); }
 
-    // REVEAL (pass-and-play) - neutral prompt then private reveal
+    // REVEAL (pass-and-play) - neutral prompt then private reveal then confirmation screen
     function showRevealForIndex(idx){
       const p = game.players[idx];
       if (!p) {
@@ -427,9 +439,10 @@ Marie</code>
       // indicate next owner (if any)
       const next = game.players[idx+1];
       nextOwnerNote.textContent = next ? `Prochain : ${next.name}` : `Prochain : Discussion / Vote`;
-      // hide private reveal, show neutral prompt
+      // hide other reveal screens, show neutral prompt
       show(neutralPrompt);
       hide(privateReveal);
+      hide(choiceConfirmed);
     }
 
     // When the player chooses to view his role/word
@@ -451,21 +464,36 @@ Marie</code>
       // UI transitions
       hide(neutralPrompt);
       show(privateReveal);
+      hide(choiceConfirmed);
     });
 
     // Option to skip revealing (le joueur préfère ne pas afficher)
     skipRevealBtn.addEventListener("click", ()=>{
-      pushHistory(`${game.players[game.revealIndex].name} a choisi de ne pas afficher son mot.`);
-      advanceRevealIndexAndShowNext();
+      const p = game.players[game.revealIndex];
+      if (!p) return;
+      pushHistory(`${p.name} a choisi de ne pas afficher son mot.`);
+      // Show confirmation screen so they can pass to next
+      showChoiceConfirmedForPlayer(p.name);
     });
 
-    hideAndNextBtn.addEventListener("click", ()=>{
-      // Hide current and go to next prompt (or discussion)
-      pushHistory(`${game.players[game.revealIndex].name} a vu son rôle/mot.`);
-      advanceRevealIndexAndShowNext();
+    // When the player confirms they saw their word and chose it
+    confirmChoiceBtn.addEventListener("click", ()=>{
+      const p = game.players[game.revealIndex];
+      if (!p) return;
+      pushHistory(`${p.name} a vu son rôle/mot.`);
+      showChoiceConfirmedForPlayer(p.name);
     });
 
-    function advanceRevealIndexAndShowNext(){
+    function showChoiceConfirmedForPlayer(playerName){
+      confirmedPlayerName.textContent = playerName;
+      game.revealStage = "confirmed";
+      hide(neutralPrompt);
+      hide(privateReveal);
+      show(choiceConfirmed);
+    }
+
+    // Move to next player (from confirmation screen)
+    confirmNextBtn.addEventListener("click", ()=>{
       game.revealIndex++;
       if (game.revealIndex >= game.players.length) {
         // end reveal phase
@@ -475,7 +503,7 @@ Marie</code>
       } else {
         showRevealForIndex(game.revealIndex);
       }
-    }
+    });
 
     // DISCUSSION TIMER
     function startDiscussionTimerIfNeeded(){
@@ -491,6 +519,7 @@ Marie</code>
           discussionTimerEl.textContent = formatTime(remaining);
           if (remaining<=0){
             clearInterval(game.timerInterval);
+            game.timerInterval = null;
             discussionTimerEl.textContent = "00:00";
             pushHistory("Le timer s'est terminé.");
             // timer finished — manual start of vote remains
@@ -547,7 +576,8 @@ Marie</code>
       Array.from(voteGrid.children).forEach(card => {
         const id = card.dataset.id;
         const cnt = counts[id] || 0;
-        card.querySelector(".small").textContent = cnt ? `${cnt} vote(s)` : "Cliquez pour voter";
+        const small = card.querySelector(".small");
+        if (small) small.textContent = cnt ? `${cnt} vote(s)` : "Cliquez pour voter";
       });
     }
 
@@ -591,7 +621,18 @@ Marie</code>
     function showEliminationResult(player){
       resultContent.innerHTML = "";
       const container = document.createElement("div");
-      container.innerHTML = `<div style="font-weight:800;font-size:18px">${player.name} a été éliminé</div><div class="muted" style="margin-top:6px">Rôle : ${roleReadable(player.role)}</div>`;
+      const title = document.createElement("div");
+      title.style.fontWeight = "800";
+      title.style.fontSize = "18px";
+      title.textContent = `${player.name} a été éliminé`;
+      container.appendChild(title);
+
+      const roleInfo = document.createElement("div");
+      roleInfo.className = "muted";
+      roleInfo.style.marginTop = "6px";
+      roleInfo.textContent = `Rôle : ${roleReadable(player.role)}`;
+      container.appendChild(roleInfo);
+
       if (player.role === "mr_white"){
         const info = document.createElement("div");
         info.style.marginTop = "12px";
@@ -599,13 +640,18 @@ Marie</code>
         const input = document.createElement("input");
         input.placeholder = "Entrez votre devinette ici";
         input.style.marginTop = "8px";
+        input.style.padding = "8px";
+        input.style.borderRadius = "8px";
+        input.style.border = "1px solid rgba(255,255,255,0.04)";
+        input.style.background = "var(--glass)";
+        input.style.color = "inherit";
         const guessBtn = document.createElement("button");
         guessBtn.textContent = "Valider la devinette";
         guessBtn.style.marginLeft = "8px";
         guessBtn.addEventListener("click", () => {
           const guess = input.value.trim();
           if (!guess) { alert("Entrez un mot."); return; }
-          const undercoverWord = game.wordPair[1].toLowerCase();
+          const undercoverWord = (game.wordPair && game.wordPair[1]) ? game.wordPair[1].toLowerCase() : "";
           if (guess.toLowerCase() === undercoverWord){
             showResult(`Mr White (${player.name}) a deviné correctement "${guess}" — MR WHITE GAGNE !`, "mr_white");
             pushHistory(`Mr White (${player.name}) a deviné correctement "${guess}" — MR WHITE WIN`);
@@ -613,7 +659,8 @@ Marie</code>
           } else {
             pushHistory(`Mr White (${player.name}) a deviné "${guess}" — incorrect.`);
             alert("Mauvaise devinette. La partie continue.");
-            container.innerHTML += `<div style="margin-top:10px" class="muted">Mot de l'éliminé : ${player.word}</div>`;
+            // show the eliminated player's word and let the game continue
+            container.appendChild(document.createElement("div")).innerHTML = `<div style="margin-top:10px" class="muted">Mot de l'éliminé : ${player.word}</div>`;
             resultContent.innerHTML = "";
             resultContent.appendChild(container);
             show(resultSection);
@@ -624,19 +671,25 @@ Marie</code>
         info.appendChild(guessBtn);
         container.appendChild(info);
       } else {
-        container.innerHTML += `<div style="margin-top:12px">Mot: <strong>${player.role==="undercover" ? game.wordPair[1] : game.wordPair[0]}</strong></div>`;
+        const wordDiv = document.createElement("div");
+        wordDiv.style.marginTop = "12px";
+        const wordText = (player.role === "undercover") ? (game.wordPair ? game.wordPair[1] : player.word) : (game.wordPair ? game.wordPair[0] : player.word);
+        wordDiv.innerHTML = `Mot: <strong>${wordText}</strong>`;
+        container.appendChild(wordDiv);
       }
+
       resultContent.appendChild(container);
       show(resultSection);
+      // short delay before checking win (so UI updates)
       setTimeout(() => {
-        if (checkWin()) return;
+        checkWin();
       }, 10);
     }
 
     continueBtn.addEventListener("click", ()=>{
       hide(resultSection);
       if (!checkWin()){
-        // After elimination, continue: reveal phase is not repeated; go to discussion normally.
+        // After elimination, continue with discussion phase (or if you prefer, go back to reveal - here we continue)
         show(discussionSection);
       }
     });
@@ -648,7 +701,7 @@ Marie</code>
       const alive = game.players.filter(p=>p.alive);
       const underAlive = alive.filter(p=>p.role==="undercover").length;
       const civAlive = alive.filter(p=>p.role==="citizen").length;
-      const mrWhiteAlive = alive.some(p=>p.role==="mr_white" && p.alive);
+      // Mr White's presence doesn't directly change these conditions (he has special win via guess)
       if (underAlive === 0){
         showResult("Tous les Undercover ont été éliminés — Les Citoyens gagnent !", "citizen");
         pushHistory("Citoyens gagnent — tous les undercovers éliminés.");
@@ -666,21 +719,34 @@ Marie</code>
     function showResult(text, winnerRole){
       resultContent.innerHTML = "";
       const el = document.createElement("div");
-      el.innerHTML = `<div style="font-size:20px;font-weight:800">${text}</div>`;
+      el.style.fontSize = "20px";
+      el.style.fontWeight = "800";
+      el.textContent = text;
+      resultContent.appendChild(el);
+
       const full = document.createElement("div");
       full.style.marginTop = "12px";
-      full.innerHTML = `<div class="muted">Révélation complète :</div>`;
+      const revealTitle = document.createElement("div");
+      revealTitle.className = "muted";
+      revealTitle.textContent = "Révélation complète :";
+      full.appendChild(revealTitle);
+
       const list = document.createElement("ul");
-      list.style.listStyle="none";list.style.padding="0";
+      list.style.listStyle = "none";
+      list.style.padding = "0";
+      list.style.margin = "8px 0 0 0";
+
       game.players.forEach(p=>{
         const li = document.createElement("li");
-        li.style.padding="6px 0";
-        li.innerHTML = `<strong>${p.name}</strong> — ${roleReadable(p.role)} — Mot: <em>${p.role==="mr_white" ? "—" : p.word}</em> ${p.alive ? '<span class="small muted"> (vivant)</span>' : '<span class="small muted"> (éliminé)</span>'}`;
+        li.style.padding = "6px 0";
+        const wordText = p.role === "mr_white" ? "—" : p.word;
+        const aliveMark = p.alive ? ' <span class="small muted"> (vivant)</span>' : ' <span class="small muted"> (éliminé)</span>';
+        li.innerHTML = `<strong>${p.name}</strong> — ${roleReadable(p.role)} — Mot: <em>${wordText}</em>${aliveMark}`;
         list.appendChild(li);
       });
+
       full.appendChild(list);
-      el.appendChild(full);
-      resultContent.appendChild(el);
+      resultContent.appendChild(full);
       show(resultSection);
     }
 
