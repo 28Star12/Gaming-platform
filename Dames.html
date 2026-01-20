@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Jeu de dames</title>
+<style>
+body {
+  background:#222;
+  color:white;
+  font-family:Arial;
+  text-align:center;
+}
+#board {
+  display:grid;
+  grid-template-columns:repeat(8,70px);
+  margin:15px auto;
+  border:4px solid #444;
+}
+.cell { width:70px;height:70px;position:relative; }
+.dark { background:#654321; }
+.light { background:#f0d9b5; }
+
+.piece {
+  width:55px;height:55px;border-radius:50%;
+  position:absolute;top:7px;left:7px;
+}
+.white { background:white; }
+.black { background:black; }
+.king { border:4px solid gold; }
+.selected { outline:4px solid red; }
+
+#panel {
+  display:flex;
+  justify-content:center;
+  gap:30px;
+  align-items:center;
+}
+button {
+  padding:8px 16px;
+  font-size:16px;
+  cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<h1>Jeu de dames</h1>
+
+<div id="panel">
+  <div id="score">Blancs : 12 | Noirs : 12</div>
+  <button onclick="restart()">🔄 Recommencer</button>
+</div>
+
+<div id="status"></div>
+<div id="board"></div>
+
+<script>
+const boardEl=document.getElementById("board");
+const statusEl=document.getElementById("status");
+const scoreEl=document.getElementById("score");
+
+let board=[], selected=null, currentPlayer="white";
+
+function restart(){ initBoard(); }
+
+function initBoard(){
+  board=[]; selected=null; currentPlayer="white";
+  boardEl.innerHTML="";
+  for(let y=0;y<8;y++){
+    board[y]=[];
+    for(let x=0;x<8;x++){
+      const c=document.createElement("div");
+      c.className="cell "+((x+y)%2?"dark":"light");
+      c.onclick=()=>onClick(x,y);
+      boardEl.appendChild(c);
+      if((x+y)%2 && y<3) board[y][x]={c:"black",k:false};
+      else if((x+y)%2 && y>4) board[y][x]={c:"white",k:false};
+      else board[y][x]=null;
+    }
+  }
+  render();
+}
+
+function render(){
+  document.querySelectorAll(".cell").forEach((c,i)=>{
+    c.innerHTML="";
+    const x=i%8,y=Math.floor(i/8);
+    const p=board[y][x];
+    if(p){
+      const d=document.createElement("div");
+      d.className="piece "+p.c+(p.k?" king":"");
+      if(selected && selected.x===x && selected.y===y) d.classList.add("selected");
+      c.appendChild(d);
+    }
+  });
+  updateScore();
+  statusEl.textContent="Tour : "+(currentPlayer==="white"?"Blancs":"Noirs");
+}
+
+function updateScore(){
+  let w=0,b=0;
+  board.flat().forEach(p=>{
+    if(p?.c==="white") w++;
+    if(p?.c==="black") b++;
+  });
+  scoreEl.textContent=`Blancs : ${w} | Noirs : ${b}`;
+  if(!b) alert("🏆 Victoire des blancs !");
+  if(!w) alert("💀 Victoire des noirs !");
+}
+
+function dirs(p){
+  if(p.k) return [[1,1],[-1,1],[1,-1],[-1,-1]];
+  return p.c==="white"?[[1,-1],[-1,-1]]:[[1,1],[-1,1]];
+}
+const inside=(x,y)=>x>=0&&x<8&&y>=0&&y<8;
+
+function onClick(x,y){
+  if(currentPlayer!=="white") return;
+  const p=board[y][x];
+  if(p?.c==="white"){ selected={x,y}; render(); return; }
+  if(selected){
+    const m=validMove(board,selected.x,selected.y,x,y,"white");
+    if(m){
+      apply(board,m);
+      if(m.cap && hasCap(board,m.x2,m.y2)){
+        selected={x:m.x2,y:m.y2};
+      } else {
+        selected=null;
+        currentPlayer="black";
+        setTimeout(botTurn,300);
+      }
+      render();
+    }
+  }
+}
+
+function validMove(b,x1,y1,x2,y2,col){
+  if(!inside(x2,y2)||b[y2][x2]) return null;
+  const p=b[y1][x1];
+  for(let[dX,dY]of dirs(p)){
+    if(x2===x1+dX&&y2===y1+dY&&!mustCap(b,col))
+      return {x1,y1,x2,y2};
+    if(x2===x1+2*dX&&y2===y1+2*dY){
+      const mx=x1+dX,my=y1+dY;
+      if(b[my]?.[mx]?.c!==col&&b[my]?.[mx])
+        return {x1,y1,x2,y2,cap:{x:mx,y:my}};
+    }
+  }
+  return null;
+}
+
+function apply(b,m){
+  const p=b[m.y1][m.x1];
+  b[m.y2][m.x2]=p; b[m.y1][m.x1]=null;
+  if(m.cap) b[m.cap.y][m.cap.x]=null;
+  if((p.c==="white"&&m.y2===0)||(p.c==="black"&&m.y2===7)) p.k=true;
+}
+
+function hasCap(b,x,y){
+  const p=b[y][x];
+  return dirs(p).some(([dx,dy])=>{
+    const mx=x+dx,my=y+dy,tx=x+2*dx,ty=y+2*dy;
+    return inside(tx,ty)&&b[my]?.[mx]?.c!==p.c&&b[my]?.[mx]&&!b[ty][tx];
+  });
+}
+function mustCap(b,col){
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++)
+    if(b[y][x]?.c===col&&hasCap(b,x,y)) return true;
+  return false;
+}
+
+/* ===== IA FORTE (MINIMAX) ===== */
+function clone(b){ return b.map(r=>r.map(p=>p?{c:p.c,k:p.k}:null)); }
+
+function evalBoard(b){
+  let s=0;
+  b.flat().forEach(p=>{
+    if(!p) return;
+    s+=(p.c==="black"?1:-1)*(p.k?3:1);
+  });
+  return s;
+}
+
+function genMoves(b,col){
+  let M=[],C=[];
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++){
+    const p=b[y][x]; if(p?.c!==col) continue;
+    for(let[dX,dY]of dirs(p)){
+      let x1=x+dX,y1=y+dY;
+      if(inside(x1,y1)&&!b[y1][x1])
+        M.push({x1:x,y1:y,x2:x1,y2:y1});
+      let x2=x+2*dX,y2=y+2*dY;
+      if(inside(x2,y2)&&b[y+dY]?.[x+dX]?.c!==col&&b[y+dY]?.[x+dX]&&!b[y2][x2])
+        C.push({x1:x,y1:y,x2,y2,cap:{x:x+dX,y:y+dY}});
+    }
+  }
+  return C.length?C:M;
+}
+
+function minimax(b,d,max){
+  if(!d) return evalBoard(b);
+  const moves=genMoves(b,max?"black":"white");
+  if(!moves.length) return max?-999:999;
+  let best=max?-1e9:1e9;
+  for(let m of moves){
+    let nb=clone(b); apply(nb,m);
+    let v=minimax(nb,d-1,!max);
+    best=max?Math.max(best,v):Math.min(best,v);
+  }
+  return best;
+}
+
+function botTurn(){
+  let best=-1e9, bestMove=null;
+  for(let m of genMoves(board,"black")){
+    let b2=clone(board); apply(b2,m);
+    let v=minimax(b2,3,false);
+    if(v>best){ best=v; bestMove=m; }
+  }
+  if(!bestMove){ alert("Victoire des blancs !"); return; }
+  apply(board,bestMove);
+  if(bestMove.cap && hasCap(board,bestMove.x2,bestMove.y2)){
+    setTimeout(botTurn,250); return;
+  }
+  currentPlayer="white";
+  render();
+}
+
+initBoard();
+</script>
+</body>
+</html>

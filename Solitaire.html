@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Solitaire HTML5 - Pioche Infinie</title>
+    <style>
+        :root {
+            --green: #2e7d32;
+            --card-width: 90px;
+            --card-height: 130px;
+            --radius: 8px;
+        }
+
+        body {
+            background-color: var(--green);
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            user-select: none;
+        }
+
+        #ui { margin: 20px; }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .top-row, #board {
+            display: grid;
+            grid-template-columns: repeat(7, var(--card-width));
+            grid-gap: 20px;
+        }
+
+        .slot {
+            width: var(--card-width);
+            height: var(--card-height);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: var(--radius);
+            position: relative;
+        }
+
+        .column {
+            width: var(--card-width);
+            min-height: 500px;
+            position: relative;
+        }
+
+        .card {
+            width: var(--card-width);
+            height: var(--card-height);
+            background: white;
+            border-radius: var(--radius);
+            border: 1px solid #999;
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            padding: 8px;
+            box-sizing: border-box;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
+
+        .card.red { color: #d32f2f; }
+        .card.black { color: #222; }
+
+        .card.back {
+            background: #1565c0;
+            background-image: repeating-linear-gradient(45deg, #1e88e5, #1e88e5 10px, #1565c0 10px, #1565c0 20px);
+            border: 2px solid white;
+        }
+
+        .card.back * { display: none; }
+
+        .card-value { font-size: 1.4em; font-weight: bold; line-height: 1; }
+        .card-suit { font-size: 1.8em; margin-top: 5px; }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1rem;
+            background: #ffca28;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #c79100;
+        }
+
+        .empty-slot-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            opacity: 0.2;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button onclick="initGame()">NOUVELLE PARTIE</button>
+    </div>
+
+    <div class="game-area">
+        <div class="top-row">
+            <div id="deck" class="slot" onclick="handleDeckClick()"></div>
+            <div id="waste" class="slot"></div>
+            <div></div>
+            <div id="f-1" class="slot foundation" data-suit="♥"><span class="empty-slot-icon">♥</span></div>
+            <div id="f-2" class="slot foundation" data-suit="♦"><span class="empty-slot-icon">♦</span></div>
+            <div id="f-3" class="slot foundation" data-suit="♣"><span class="empty-slot-icon">♣</span></div>
+            <div id="f-4" class="slot foundation" data-suit="♠"><span class="empty-slot-icon">♠</span></div>
+        </div>
+
+        <div id="board">
+            <div class="column" id="col-0"></div>
+            <div class="column" id="col-1"></div>
+            <div class="column" id="col-2"></div>
+            <div class="column" id="col-3"></div>
+            <div class="column" id="col-4"></div>
+            <div class="column" id="col-5"></div>
+            <div class="column" id="col-6"></div>
+        </div>
+    </div>
+
+    <script>
+        const suites = ['♥', '♦', '♣', '♠'];
+        const valeurs = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+        const poids = { 'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13 };
+        
+        let deckData = [];  // Cartes dans la pioche
+        let wasteData = []; // Cartes dans la défausse
+        let draggedCard = null;
+
+        function initGame() {
+            deckData = [];
+            wasteData = [];
+            document.querySelectorAll('.column, .foundation, #waste, #deck').forEach(el => {
+                const icon = el.querySelector('.empty-slot-icon');
+                el.innerHTML = '';
+                if(icon) el.appendChild(icon);
+            });
+            
+            let fullDeck = [];
+            for (let s of suites) {
+                for (let v of valeurs) {
+                    fullDeck.push({ v, s, color: (s==='♥'||s==='♦')?'red':'black', p: poids[v] });
+                }
+            }
+
+            // Mélange
+            fullDeck.sort(() => Math.random() - 0.5);
+
+            // Distribution colonnes
+            for (let i = 0; i < 7; i++) {
+                const col = document.getElementById(`col-${i}`);
+                for (let j = 0; j <= i; j++) {
+                    const cardData = fullDeck.pop();
+                    const cardEl = createCardElement(cardData, j === i);
+                    renderCard(cardEl, col, j);
+                }
+            }
+            
+            deckData = fullDeck; // Le reste va dans la pioche
+            updateDeckVisual();
+        }
+
+        function createCardElement(data, visible) {
+            const card = document.createElement('div');
+            card.className = `card ${data.color} ${visible ? '' : 'back'}`;
+            card.dataset.v = data.v;
+            card.dataset.s = data.s;
+            card.dataset.p = data.p;
+            card.dataset.color = data.color;
+            card.innerHTML = `<span class="card-value">${data.v}</span><span class="card-suit">${data.s}</span>`;
+            
+            if (visible) {
+                card.draggable = true;
+                card.addEventListener('dragstart', (e) => {
+                    draggedCard = card;
+                    e.dataTransfer.setData('text/plain', '');
+                });
+            }
+            return card;
+        }
+
+        function renderCard(card, container, index) {
+            card.style.top = container.classList.contains('column') ? (index * 30) + "px" : "0px";
+            container.appendChild(card);
+        }
+
+        // --- GESTION PIOCHE ET DÉFAUSSE ---
+
+        function handleDeckClick() {
+            if (deckData.length > 0) {
+                // On tire une carte
+                const cardData = deckData.pop();
+                wasteData.push(cardData);
+                const cardEl = createCardElement(cardData, true);
+                const waste = document.getElementById('waste');
+                waste.innerHTML = ''; 
+                renderCard(cardEl, waste, 0);
+            } else if (wasteData.length > 0) {
+                // RECYCLAGE : On remet la défausse dans la pioche
+                deckData = wasteData.reverse();
+                wasteData = [];
+                document.getElementById('waste').innerHTML = '';
+            }
+            updateDeckVisual();
+        }
+
+        function updateDeckVisual() {
+            const d = document.getElementById('deck');
+            d.innerHTML = deckData.length > 0 
+                ? '<div class="card back" style="top:0"></div>' 
+                : '<div class="empty-slot-icon">🔄</div>';
+        }
+
+        // --- DRAG AND DROP ---
+
+        document.addEventListener('dragover', e => e.preventDefault());
+
+        document.addEventListener('drop', e => {
+            e.preventDefault();
+            const target = e.target.closest('.column, .foundation, .slot');
+            if (!target || !draggedCard) return;
+
+            const sP = parseInt(draggedCard.dataset.p);
+            const sC = draggedCard.dataset.color;
+            const sS = draggedCard.dataset.s;
+            const targetCard = target.lastElementChild;
+
+            let valid = false;
+
+            if (target.classList.contains('column')) {
+                if (!targetCard) {
+                    if (sP === 13) valid = true;
+                } else if (!targetCard.classList.contains('back')) {
+                    if (parseInt(targetCard.dataset.p) === sP + 1 && targetCard.dataset.color !== sC) valid = true;
+                }
+            } else if (target.classList.contains('foundation')) {
+                if (!targetCard || targetCard.classList.contains('empty-slot-icon')) {
+                    if (sP === 1 && sS === target.dataset.suit) valid = true;
+                } else {
+                    if (sS === targetCard.dataset.s && sP === parseInt(targetCard.dataset.p) + 1) valid = true;
+                }
+            }
+
+            if (valid) {
+                const source = draggedCard.parentElement;
+                
+                // Si la carte vient de la défausse, on la retire de wasteData
+                if (source.id === 'waste') wasteData.pop();
+
+                const cardsToMove = Array.from(source.children).slice(Array.from(source.children).indexOf(draggedCard));
+                cardsToMove.forEach(c => {
+                    const idx = target.classList.contains('column') ? (target.querySelectorAll('.card').length) : 0;
+                    renderCard(c, target, idx);
+                });
+
+                // Retourner la carte cachée
+                if (source.lastElementChild && source.lastElementChild.classList.contains('back')) {
+                    const last = source.lastElementChild;
+                    const flipped = createCardElement({v:last.dataset.v, s:last.dataset.s, color:last.dataset.color, p:last.dataset.p}, true);
+                    const idx = Array.from(source.children).indexOf(last);
+                    last.remove();
+                    renderCard(flipped, source, idx);
+                }
+            }
+        });
+
+        initGame();
+    </script>
+</body>
+</html>

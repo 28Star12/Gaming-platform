@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puissance 4 - Bot Imbattable (Vraiment !)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .board {
+            display: flex;
+            background-color: #1a73e8;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .column {
+            display: flex;
+            flex-direction: column;
+            margin: 0 3px;
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            background-color: white;
+            border-radius: 50%;
+            margin: 2px 0;
+            border: 1px solid #ddd;
+        }
+        .cell.red {
+            background-color: #d32f2f;
+        }
+        .cell.yellow {
+            background-color: #ffeb3b;
+        }
+        .status {
+            font-size: 20px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        .header {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .header div {
+            width: 50px;
+            height: 30px;
+            margin: 0 3px;
+            background-color: #1565c0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Puissance 4 - Bot Imbattable</h1>
+    <div class="status" id="status">À toi de jouer (rouge) !</div>
+    <div class="header" id="header"></div>
+    <div class="board" id="board"></div>
+    <button id="reset">Recommencer</button>
+
+    <script>
+        // --- Variables globales ---
+        const ROWS = 6;
+        const COLS = 7;
+        let board = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+        let currentPlayer = 'red'; // 'red' = toi, 'yellow' = bot
+        let gameActive = true;
+
+        // --- Initialisation ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initBoard();
+            document.getElementById('reset').addEventListener('click', resetGame);
+        });
+
+        // Crée le plateau et les en-têtes
+        function initBoard() {
+            const boardElement = document.getElementById('board');
+            const headerElement = document.getElementById('header');
+            boardElement.innerHTML = '';
+            headerElement.innerHTML = '';
+
+            for (let c = 0; c < COLS; c++) {
+                // En-tête cliquable
+                const headerCell = document.createElement('div');
+                headerCell.textContent = c + 1;
+                headerCell.dataset.col = c;
+                headerCell.addEventListener('click', () => handleColumnClick(c));
+                headerElement.appendChild(headerCell);
+
+                // Colonne du plateau
+                const column = document.createElement('div');
+                column.className = 'column';
+                for (let r = 0; r < ROWS; r++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    column.appendChild(cell);
+                }
+                boardElement.appendChild(column);
+            }
+        }
+
+        // Gère le clic sur une colonne
+        function handleColumnClick(col) {
+            if (!gameActive || currentPlayer !== 'red') return;
+            const row = getNextOpenRow(col);
+            if (row !== -1) {
+                board[row][col] = 'red';
+                updateBoard();
+                if (checkWin('red')) {
+                    endGame("Tu as gagné !");
+                    return;
+                } else if (isBoardFull()) {
+                    endGame("Match nul !");
+                    return;
+                }
+                currentPlayer = 'yellow';
+                document.getElementById('status').textContent = "Tour du bot...";
+                setTimeout(botPlay, 500);
+            }
+        }
+
+        // Retourne la prochaine ligne disponible (en partant du bas)
+        function getNextOpenRow(col) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r][col] === null) return r;
+            }
+            return -1;
+        }
+
+        // Met à jour l'affichage
+        function updateBoard() {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+                    cell.className = 'cell';
+                    if (board[r][c] === 'red') cell.classList.add('red');
+                    else if (board[r][c] === 'yellow') cell.classList.add('yellow');
+                }
+            }
+        }
+
+        // Vérifie si un joueur a gagné
+        function checkWin(player) {
+            // Lignes horizontales
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 3; c++) {
+                    if (board[r][c] === player && board[r][c+1] === player &&
+                        board[r][c+2] === player && board[r][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+            // Lignes verticales
+            for (let r = 0; r < ROWS - 3; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] === player && board[r+1][c] === player &&
+                        board[r+2][c] === player && board[r+3][c] === player) {
+                        return true;
+                    }
+                }
+            }
+            // Diagonales (haut-gauche → bas-droite)
+            for (let r = 0; r < ROWS - 3; r++) {
+                for (let c = 0; c < COLS - 3; c++) {
+                    if (board[r][c] === player && board[r+1][c+1] === player &&
+                        board[r+2][c+2] === player && board[r+3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+            // Diagonales (bas-gauche → haut-droite)
+            for (let r = 3; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 3; c++) {
+                    if (board[r][c] === player && board[r-1][c+1] === player &&
+                        board[r-2][c+2] === player && board[r-3][c+3] === player) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Vérifie si le plateau est plein
+        function isBoardFull() {
+            return board[0].every(cell => cell !== null);
+        }
+
+        // Vérifie si le joueur a une menace de victoire (3 alignés)
+        function hasThreat() {
+            // Lignes horizontales
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 2; c++) {
+                    if (board[r][c] === 'red' && board[r][c+1] === 'red' && board[r][c+2] === 'red') {
+                        if ((c > 0 && board[r][c-1] === null) || (c < COLS-3 && board[r][c+3] === null)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            // Colonnes
+            for (let r = 0; r < ROWS - 2; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] === 'red' && board[r+1][c] === 'red' && board[r+2][c] === 'red' && board[r+3][c] === null) {
+                        return true;
+                    }
+                }
+            }
+            // Diagonales (haut-gauche → bas-droite)
+            for (let r = 0; r < ROWS - 2; r++) {
+                for (let c = 0; c < COLS - 2; c++) {
+                    if (board[r][c] === 'red' && board[r+1][c+1] === 'red' && board[r+2][c+2] === 'red') {
+                        if ((r > 0 && c > 0 && board[r-1][c-1] === null) || (r < ROWS-3 && c < COLS-3 && board[r+3][c+3] === null)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            // Diagonales (bas-gauche → haut-droite)
+            for (let r = 2; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 2; c++) {
+                    if (board[r][c] === 'red' && board[r-1][c+1] === 'red' && board[r-2][c+2] === 'red') {
+                        if ((r < ROWS-1 && c < COLS-3 && board[r+1][c+3] === null) || (r > 2 && c > 0 && board[r-3][c-1] === null)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Tour du bot (stratégie imbattable)
+        function botPlay() {
+            // 1. Vérifie si le bot peut gagner immédiatement
+            for (let c = 0; c < COLS; c++) {
+                const row = getNextOpenRow(c);
+                if (row !== -1) {
+                    board[row][c] = 'yellow';
+                    if (checkWin('yellow')) {
+                        updateBoard();
+                        endGame("Le bot a gagné !");
+                        return;
+                    }
+                    board[row][c] = null;
+                }
+            }
+
+            // 2. Bloque les menaces du joueur
+            for (let c = 0; c < COLS; c++) {
+                const row = getNextOpenRow(c);
+                if (row !== -1) {
+                    board[row][c] = 'red';
+                    if (checkWin('red')) {
+                        board[row][c] = 'yellow'; // Bloque la menace
+                        updateBoard();
+                        if (checkWin('yellow')) {
+                            endGame("Le bot a gagné !");
+                            return;
+                        } else if (isBoardFull()) {
+                            endGame("Match nul !");
+                            return;
+                        }
+                        currentPlayer = 'red';
+                        document.getElementById('status').textContent = "À toi de jouer !";
+                        return;
+                    }
+                    board[row][c] = null;
+                }
+            }
+
+            // 3. Joue au centre si possible
+            const centerCol = Math.floor(COLS / 2);
+            const centerRow = getNextOpenRow(centerCol);
+            if (centerRow !== -1) {
+                board[centerRow][centerCol] = 'yellow';
+                updateBoard();
+                if (checkWin('yellow')) {
+                    endGame("Le bot a gagné !");
+                    return;
+                } else if (isBoardFull()) {
+                    endGame("Match nul !");
+                    return;
+                }
+                currentPlayer = 'red';
+                document.getElementById('status').textContent = "À toi de jouer !";
+                return;
+            }
+
+            // 4. Joue aléatoirement sinon
+            let col;
+            do {
+                col = Math.floor(Math.random() * COLS);
+            } while (getNextOpenRow(col) === -1);
+            const row = getNextOpenRow(col);
+            board[row][col] = 'yellow';
+            updateBoard();
+            if (checkWin('yellow')) {
+                endGame("Le bot a gagné !");
+                return;
+            } else if (isBoardFull()) {
+                endGame("Match nul !");
+                return;
+            }
+            currentPlayer = 'red';
+            document.getElementById('status').textContent = "À toi de jouer !";
+        }
+
+        // Fin de partie
+        function endGame(message) {
+            gameActive = false;
+            document.getElementById('status').textContent = message;
+        }
+
+        // Réinitialise le jeu
+        function resetGame() {
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+            currentPlayer = 'red';
+            gameActive = true;
+            document.getElementById('status').textContent = "À toi de jouer (rouge) !";
+            initBoard();
+        }
+    </script>
+</body>
+</html>
