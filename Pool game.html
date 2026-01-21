@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Mini Billard JS - Joueur vs Bot</title>
+    <style>
+        body { background: #2c3e50; display: flex; flex-direction: column; align-items: center; color: white; font-family: sans-serif; }
+        canvas { background: #0a5d1a; border: 15px solid #5d3f1a; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: crosshair; }
+        .info { margin: 10px; font-size: 1.2rem; }
+        .controls { color: #bdc3c7; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+    <div class="info" id="status">À vous de jouer !</div>
+    <canvas id="poolTable" width="800" height="400"></canvas>
+    <div class="controls">Cliquez et glissez pour viser | Relâchez pour tirer</div>
+
+    <script>
+        const canvas = document.getElementById('poolTable');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+
+        // Configuration
+        const ballRadius = 10;
+        const friction = 0.985; // Ralentissement progressif
+        let isPlayerTurn = true;
+        let isMoving = false;
+
+        // Souris / Visée
+        let isDragging = false;
+        let dragStartX, dragStartY;
+        let mouseX, mouseY;
+
+        // Structure d'une bille
+        class Ball {
+            constructor(x, y, color, isCue = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.color = color;
+                this.isCue = isCue;
+                this.inPocket = false;
+            }
+
+            draw() {
+                if (this.inPocket) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            update() {
+                if (this.inPocket) return;
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= friction;
+                this.vy *= friction;
+
+                // Arrêt si trop lent
+                if (Math.abs(this.vx) < 0.1) this.vx = 0;
+                if (Math.abs(this.vy) < 0.1) this.vy = 0;
+
+                // Rebond sur les bords
+                if (this.x + ballRadius > canvas.width || this.x - ballRadius < 0) {
+                    this.vx = -this.vx;
+                }
+                if (this.y + ballRadius > canvas.height || this.y - ballRadius < 0) {
+                    this.vy = -this.vy;
+                }
+
+                // Vérification des poches (coins et milieu)
+                const pockets = [
+                    [0,0], [400,0], [800,0],
+                    [0,400], [400,400], [800,400]
+                ];
+                pockets.forEach(p => {
+                    let dist = Math.hypot(this.x - p[0], this.y - p[1]);
+                    if (dist < 25) {
+                        this.inPocket = true;
+                        this.vx = 0; this.vy = 0;
+                    }
+                });
+            }
+        }
+
+        let balls = [];
+        const cueBall = new Ball(200, 200, 'white', true);
+
+        function initBalls() {
+            balls = [cueBall];
+            // Création d'un triangle de billes rouges
+            for(let i=0; i<4; i++) {
+                for(let j=0; j<=i; j++) {
+                    balls.push(new Ball(500 + i*20, 170 + j*22 - i*11, 'red'));
+                }
+            }
+        }
+
+        // Gestion des collisions entre billes
+        function resolveCollision(b1, b2) {
+            let dx = b2.x - b1.x;
+            let dy = b2.y - b1.y;
+            let distance = Math.hypot(dx, dy);
+
+            if (distance < ballRadius * 2) {
+                let angle = Math.atan2(dy, dx);
+                let sin = Math.sin(angle);
+                let cos = Math.cos(angle);
+
+                // Rotation des vitesses
+                let vx1 = b1.vx * cos + b1.vy * sin;
+                let vy1 = b1.vy * cos - b1.vx * sin;
+                let vx2 = b2.vx * cos + b2.vy * sin;
+                let vy2 = b2.vy * cos - b2.vx * sin;
+
+                // Échange des vitesses (masse égale)
+                let temp = vx1; vx1 = vx2; vx2 = temp;
+
+                // On replace les billes pour éviter qu'elles s'encastrent
+                let overlap = ballRadius * 2 - distance;
+                b1.x -= (overlap / 2) * cos;
+                b1.y -= (overlap / 2) * sin;
+                b2.x += (overlap / 2) * cos;
+                b2.y += (overlap / 2) * sin;
+
+                b1.vx = vx1 * cos - vy1 * sin;
+                b1.vy = vy1 * cos + vx1 * sin;
+                b2.vx = vx2 * cos - vy2 * sin;
+                b2.vy = vy2 * cos + vx2 * sin;
+            }
+        }
+
+        // IA du Bot
+        function botPlay() {
+            if (!isPlayerTurn && !isMoving) {
+                status.innerText = "Le bot réfléchit...";
+                setTimeout(() => {
+                    // Trouver la bille rouge la plus proche non empochée
+                    const targets = balls.filter(b => !b.isCue && !b.inPocket);
+                    if (targets.length === 0) return;
+
+                    let target = targets[0];
+                    let dx = target.x - cueBall.x;
+                    let dy = target.y - cueBall.y;
+                    
+                    // Tirer vers la cible avec une force aléatoire
+                    let power = 0.15;
+                    cueBall.vx = dx * power;
+                    cueBall.vy = dy * power;
+                    
+                    isMoving = true;
+                    isPlayerTurn = true;
+                    status.innerText = "À vous de jouer !";
+                }, 1500);
+            }
+        }
+
+        // Boucle de rendu
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Dessiner les poches (cercles noirs)
+            ctx.fillStyle = "black";
+            [0, 400, 800].forEach(x => {
+                [0, 400].forEach(y => {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 25, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            });
+
+            isMoving = balls.some(b => Math.abs(b.vx) > 0 || Math.abs(b.vy) > 0);
+
+            // Physique
+            for (let i = 0; i < balls.length; i++) {
+                balls[i].update();
+                for (let j = i + 1; j < balls.length; j++) {
+                    if (!balls[i].inPocket && !balls[j].inPocket) {
+                        resolveCollision(balls[i], balls[j]);
+                    }
+                }
+                balls[i].draw();
+            }
+
+            // Dessiner la ligne de visée
+            if (isDragging && isPlayerTurn && !isMoving) {
+                ctx.beginPath();
+                ctx.moveTo(cueBall.x, cueBall.y);
+                ctx.lineTo(cueBall.x - (mouseX - dragStartX), cueBall.y - (mouseY - dragStartY));
+                ctx.strokeStyle = "rgba(255,255,255,0.5)";
+                ctx.stroke();
+            }
+
+            // Gérer le tour du bot
+            if (!isMoving && !isPlayerTurn) {
+                botPlay();
+            }
+
+            // Si la bille blanche est empochée, on la remet au centre
+            if (cueBall.inPocket) {
+                cueBall.inPocket = false;
+                cueBall.x = 200; cueBall.y = 200;
+                cueBall.vx = 0; cueBall.vy = 0;
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // Événements souris
+        canvas.addEventListener('mousedown', e => {
+            if (!isMoving && isPlayerTurn) {
+                isDragging = true;
+                dragStartX = e.offsetX;
+                dragStartY = e.offsetY;
+            }
+        });
+
+        canvas.addEventListener('mousemove', e => {
+            mouseX = e.offsetX;
+            mouseY = e.offsetY;
+        });
+
+        window.addEventListener('mouseup', e => {
+            if (isDragging) {
+                let dx = e.offsetX - dragStartX;
+                let dy = e.offsetY - dragStartY;
+                
+                cueBall.vx = -dx * 0.15; // Puissance du tir
+                cueBall.vy = -dy * 0.15;
+                
+                isDragging = false;
+                isMoving = true;
+                isPlayerTurn = false;
+                status.innerText = "Tour du Bot...";
+            }
+        });
+
+        initBalls();
+        update();
+    </script>
+</body>
+</html>
