@@ -12,11 +12,11 @@
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 10px;
+            padding: 5px 10px 10px 10px; /* un peu moins de padding top pour remonter les jauges */
         }
         h1 { margin: 5px 0; color: #4caf50; text-shadow: 2px 2px #000; font-size: 24px; }
         
-        /* Contrôles placés en haut */
+        /* Contrôles placés en haut (remontés) */
         .controls {
             display: flex;
             gap: 40px;
@@ -26,6 +26,8 @@
             border-radius: 15px;
             align-items: flex-end; /* Aligne les jauges par le bas */
             border: 2px solid #444;
+            position: relative;
+            top: -12px; /* remonte légèrement les jauges */
         }
 
         #score-display {
@@ -59,7 +61,7 @@
         .active { border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
         .label { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #eee; }
 
-        #game-container { position: relative; }
+        #game-container { position: relative; margin-top: 12px; } /* espace pour éviter chevauchement */
         canvas {
             background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
             border: 8px solid #5d4037;
@@ -129,6 +131,8 @@
 
         let ball = { x: 80, y: 200, r: 8, vx: 0, vy: 0, friction: 0.985 };
         let hole = { x: 720, y: 200, r: 14 };
+
+        // Obstacles : murs verticaux (les positions restent, la physique empêche désormais le passage)
         let obstacles = [
             { x: 250, y: 0, w: 30, h: 220 },
             { x: 420, y: 180, w: 30, h: 220 },
@@ -167,8 +171,9 @@
                     ball.y = ball.y < ball.r ? ball.r : canvas.height - ball.r;
                 }
 
-                // PHYSIQUE DES MURS D'OBSTACLES (CORRIGÉE)
+                // PHYSIQUE DES MURS D'OBSTACLES (RÉSOLUTION PAR NORMAL + RÉFLEXION)
                 obstacles.forEach(obs => {
+                    // trouver le point le plus proche sur le rectangle
                     let closestX = Math.max(obs.x, Math.min(ball.x, obs.x + obs.w));
                     let closestY = Math.max(obs.y, Math.min(ball.y, obs.y + obs.h));
                     let distanceX = ball.x - closestX;
@@ -176,14 +181,25 @@
                     let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
 
                     if (distanceSquared < (ball.r * ball.r)) {
-                        // Déterminer de quel côté l'impact a eu lieu
-                        if (Math.abs(distanceX) > Math.abs(distanceY)) {
-                            ball.vx *= -0.8;
-                            ball.x = closestX + (distanceX > 0 ? ball.r : -ball.r);
-                        } else {
-                            ball.vy *= -0.8;
-                            ball.y = closestY + (distanceY > 0 ? ball.r : -ball.r);
-                        }
+                        let distance = Math.sqrt(distanceSquared) || 0.0001; // éviter division par 0
+                        // normale du contact (de l'obstacle vers la balle)
+                        let nx = distanceX / distance;
+                        let ny = distanceY / distance;
+                        // profondeur de pénétration
+                        let penetration = ball.r - distance;
+                        // déplacer la balle hors de l'obstacle le long de la normale
+                        ball.x += nx * (penetration + 0.5);
+                        ball.y += ny * (penetration + 0.5);
+
+                        // réflexection de la vélocité selon la normale (coefficient de rebond 0.8)
+                        let vDotN = ball.vx * nx + ball.vy * ny;
+                        // retirer la composante normale et inverser avec amortissement
+                        ball.vx -= (1.8 * vDotN) * nx;
+                        ball.vy -= (1.8 * vDotN) * ny;
+
+                        // petit correctif pour empêcher "coller" à l'obstacle
+                        if (Math.abs(ball.vx) < 0.05) ball.vx = 0;
+                        if (Math.abs(ball.vy) < 0.05) ball.vy = 0;
                     }
                 });
 
