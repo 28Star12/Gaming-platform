@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>MiniGolf Pro - 3 Bisques</title>
+    <title>MiniGolf Pro - 3 Bisques Corrigé</title>
     <style>
         body {
             background: #222;
@@ -12,36 +12,31 @@
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 20px;
+            padding: 10px;
         }
-        h1 { margin-bottom: 5px; color: #4caf50; text-shadow: 2px 2px #000; }
-        #score-display {
-            font-size: 24px;
-            background: #444;
-            padding: 10px 20px;
-            border-radius: 50px;
-            border: 2px solid #4caf50;
-            margin: 10px;
-        }
-        #game-container {
-            position: relative;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
-        canvas {
-            background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
-            border: 8px solid #5d4037;
-            border-radius: 15px;
-            cursor: crosshair;
-        }
+        h1 { margin: 5px 0; color: #4caf50; text-shadow: 2px 2px #000; font-size: 24px; }
+        
+        /* Contrôles placés en haut */
         .controls {
             display: flex;
-            gap: 30px;
-            margin-top: 20px;
+            gap: 40px;
+            margin-bottom: 15px;
             background: #333;
-            padding: 20px;
+            padding: 15px 30px;
             border-radius: 15px;
-            align-items: center;
+            align-items: flex-end; /* Aligne les jauges par le bas */
+            border: 2px solid #444;
         }
+
+        #score-display {
+            font-size: 20px;
+            background: #4caf50;
+            padding: 5px 20px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
         .gauge-container {
             background: #111;
             border: 2px solid #888;
@@ -49,9 +44,10 @@
             overflow: hidden;
             border-radius: 5px;
         }
-        #power-gauge-ui { width: 40px; height: 150px; display: flex; flex-direction: column-reverse; }
-        #direction-gauge-ui { width: 180px; height: 30px; }
-        .bar { position: absolute; transition: 0.1s; }
+        #power-gauge-ui { width: 40px; height: 100px; display: flex; flex-direction: column-reverse; }
+        #direction-gauge-ui { width: 150px; height: 30px; }
+        
+        .bar { position: absolute; }
         #power-bar {
             width: 100%; bottom: 0; height: 0%;
             background: linear-gradient(to top, #4caf50, #ffeb3b, #f44336);
@@ -61,16 +57,23 @@
             background: #2196f3; box-shadow: 0 0 5px #2196f3;
         }
         .active { border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
-        .label { text-align: center; font-size: 14px; font-weight: bold; margin-bottom: 8px; color: #aaa; }
+        .label { text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #eee; }
+
+        #game-container { position: relative; }
+        canvas {
+            background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+            border: 8px solid #5d4037;
+            border-radius: 15px;
+        }
         
         #success-message {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             color: gold;
-            font-size: 32px;
-            padding: 30px;
+            font-size: 28px;
+            padding: 25px;
             border-radius: 20px;
             display: none;
             text-align: center;
@@ -78,32 +81,20 @@
             z-index: 10;
         }
         button {
-            padding: 12px 25px;
-            font-size: 18px;
+            margin-top: 15px;
+            padding: 10px 20px;
             background: #4caf50;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: 0.3s;
         }
-        button:hover { background: #66bb6a; transform: scale(1.05); }
     </style>
 </head>
 <body>
 
     <h1>MINIGOLF PRO</h1>
-    <div id="score-display">COUPS : 0</div>
-
-    <div id="game-container">
-        <canvas id="golfCanvas" width="800" height="450"></canvas>
-        <div id="success-message">
-            BIEN JOUÉ !<br>
-            <span id="final-shots" style="font-size: 24px; color: white;"></span><br><br>
-            <button onclick="resetBall()">REJOUER</button>
-        </div>
-    </div>
-
+    
     <div class="controls">
         <div>
             <div class="label">PUISSANCE</div>
@@ -112,10 +103,20 @@
             </div>
         </div>
         <div>
+            <div id="score-display">COUPS : 0</div>
             <div class="label">ANGLE</div>
             <div id="direction-gauge-ui" class="gauge-container">
                 <div id="direction-bar" class="bar"></div>
             </div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="golfCanvas" width="800" height="400"></canvas>
+        <div id="success-message">
+            BIEN JOUÉ !<br>
+            <span id="final-shots" style="font-size: 20px; color: white;"></span><br>
+            <button onclick="resetBall()">REJOUER</button>
         </div>
     </div>
 
@@ -126,13 +127,12 @@
         const successMessage = document.getElementById('success-message');
         const finalShotsText = document.getElementById('final-shots');
 
-        // Configuration
-        let ball = { x: 80, y: 225, r: 8, vx: 0, vy: 0, friction: 0.985 };
-        let hole = { x: 720, y: 225, r: 14 };
+        let ball = { x: 80, y: 200, r: 8, vx: 0, vy: 0, friction: 0.985 };
+        let hole = { x: 720, y: 200, r: 14 };
         let obstacles = [
-            { x: 250, y: 0, w: 25, h: 250 },
-            { x: 400, y: 200, w: 25, h: 250 },
-            { x: 550, y: 100, w: 25, h: 250 }
+            { x: 250, y: 0, w: 30, h: 220 },
+            { x: 420, y: 180, w: 30, h: 220 },
+            { x: 580, y: 0, w: 30, h: 220 }
         ];
         
         let shots = 0;
@@ -140,19 +140,16 @@
         let powerVal = 0; let powerDir = 1;
         let dirVal = 50; let dirSwap = 1;
 
-        const powerBar = document.getElementById('power-bar');
-        const directionBar = document.getElementById('direction-bar');
-
         function update() {
             if (gameState === "POWER") {
-                powerVal += 1.8 * powerDir;
+                powerVal += 2 * powerDir;
                 if (powerVal >= 100 || powerVal <= 0) powerDir *= -1;
-                powerBar.style.height = powerVal + "%";
+                document.getElementById('power-bar').style.height = powerVal + "%";
             } 
             else if (gameState === "DIRECTION") {
-                dirVal += 2.2 * dirSwap;
+                dirVal += 2.5 * dirSwap;
                 if (dirVal >= 100 || dirVal <= 0) dirSwap *= -1;
-                directionBar.style.left = dirVal + "%";
+                document.getElementById('direction-bar').style.left = dirVal + "%";
             }
             else if (gameState === "MOVING") {
                 ball.x += ball.vx;
@@ -160,18 +157,33 @@
                 ball.vx *= ball.friction;
                 ball.vy *= ball.friction;
 
-                // Murs
-                if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.vx *= -0.7;
-                if (ball.y < ball.r || ball.y > canvas.height - ball.r) ball.vy *= -0.7;
+                // Murs extérieurs
+                if (ball.x < ball.r || ball.x > canvas.width - ball.r) {
+                    ball.vx *= -0.8;
+                    ball.x = ball.x < ball.r ? ball.r : canvas.width - ball.r;
+                }
+                if (ball.y < ball.r || ball.y > canvas.height - ball.r) {
+                    ball.vy *= -0.8;
+                    ball.y = ball.y < ball.r ? ball.r : canvas.height - ball.r;
+                }
 
-                // Les 3 Bisques
+                // PHYSIQUE DES MURS D'OBSTACLES (CORRIGÉE)
                 obstacles.forEach(obs => {
-                    if (ball.x + ball.r > obs.x && ball.x - ball.r < obs.x + obs.w &&
-                        ball.y + ball.r > obs.y && ball.y - ball.r < obs.y + obs.h) {
-                        
-                        // Collision simple
-                        if (ball.x < obs.x || ball.x > obs.x + obs.w) ball.vx *= -0.8;
-                        else ball.vy *= -0.8;
+                    let closestX = Math.max(obs.x, Math.min(ball.x, obs.x + obs.w));
+                    let closestY = Math.max(obs.y, Math.min(ball.y, obs.y + obs.h));
+                    let distanceX = ball.x - closestX;
+                    let distanceY = ball.y - closestY;
+                    let distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+
+                    if (distanceSquared < (ball.r * ball.r)) {
+                        // Déterminer de quel côté l'impact a eu lieu
+                        if (Math.abs(distanceX) > Math.abs(distanceY)) {
+                            ball.vx *= -0.8;
+                            ball.x = closestX + (distanceX > 0 ? ball.r : -ball.r);
+                        } else {
+                            ball.vy *= -0.8;
+                            ball.y = closestY + (distanceY > 0 ? ball.r : -ball.r);
+                        }
                     }
                 });
 
@@ -196,68 +208,42 @@
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Dessiner l'herbe (texture)
+            // Herbe
             ctx.fillStyle = "rgba(255, 255, 255, 0.05)";
-            for (let i = 0; i < canvas.width; i += 40) {
-                ctx.fillRect(i, 0, 20, canvas.height);
-            }
+            for (let i = 0; i < canvas.width; i += 40) ctx.fillRect(i, 0, 20, canvas.height);
 
-            // 2. Dessiner le trou et le drapeau
+            // Trou
             ctx.fillStyle = "#111";
-            ctx.beginPath();
-            ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2); ctx.fill();
             
-            // Mât
-            ctx.strokeStyle = "white";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(hole.x, hole.y);
-            ctx.lineTo(hole.x, hole.y - 40);
-            ctx.stroke();
-            // Tissu drapeau
-            ctx.fillStyle = "#f44336";
-            ctx.beginPath();
-            ctx.moveTo(hole.x, hole.y - 40);
-            ctx.lineTo(hole.x + 20, hole.y - 30);
-            ctx.lineTo(hole.x, hole.y - 20);
-            ctx.fill();
-
-            // 3. Dessiner les Bisques (obstacles)
-            ctx.fillStyle = "#5d4037"; // Bois sombre
+            // Obstacles (Murs)
+            ctx.fillStyle = "#5d4037";
             obstacles.forEach(obs => {
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = "black";
                 ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-                ctx.shadowBlur = 0;
-                // Détails bois
                 ctx.strokeStyle = "#3e2723";
+                ctx.lineWidth = 2;
                 ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
             });
 
-            // 4. Ligne de visée
+            // Visée
             if (gameState === "DIRECTION" || gameState === "POWER") {
                 ctx.beginPath();
-                ctx.setLineDash([8, 4]);
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
                 ctx.moveTo(ball.x, ball.y);
                 let angle = (dirVal - 50) * 0.035; 
-                ctx.lineTo(ball.x + 120, ball.y + (angle * 250));
+                ctx.lineTo(ball.x + 80, ball.y + (angle * 180));
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
 
-            // 5. Dessiner la balle
+            // Balle
             ctx.fillStyle = "white";
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
         }
 
         window.addEventListener('mousedown', () => {
+            if (gameState === "HOLE") return;
             if (gameState === "WAITING") {
                 gameState = "POWER";
                 document.getElementById('power-gauge-ui').classList.add('active');
@@ -269,28 +255,23 @@
             }
             else if (gameState === "DIRECTION") {
                 document.getElementById('direction-gauge-ui').classList.remove('active');
-                shoot();
+                shots++;
+                scoreDisplay.textContent = `COUPS : ${shots}`;
+                ball.vx = (powerVal / 5) + 2;
+                ball.vy = ((dirVal - 50) * 0.035) * ball.vx;
+                gameState = "MOVING";
             }
         });
 
-        function shoot() {
-            shots++;
-            scoreDisplay.textContent = `COUPS : ${shots}`;
-            const force = (powerVal / 5) + 2;
-            const angle = (dirVal - 50) * 0.035;
-            ball.vx = force;
-            ball.vy = angle * force;
-            gameState = "MOVING";
-        }
-
         function resetBall() {
-            ball.x = 80; ball.y = 225;
+            ball.x = 80; ball.y = 200;
             ball.vx = 0; ball.vy = 0;
             shots = 0;
             scoreDisplay.textContent = `COUPS : 0`;
             gameState = "WAITING";
             successMessage.style.display = "none";
             powerVal = 0; dirVal = 50;
+            document.getElementById('power-bar').style.height = "0%";
         }
 
         update();
