@@ -2,246 +2,271 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Mini Billard JS - Joueur vs Bot</title>
+    <title>Billard Custom Pro - Bot Fix</title>
     <style>
-        body { background: #2c3e50; display: flex; flex-direction: column; align-items: center; color: white; font-family: sans-serif; }
-        canvas { background: #0a5d1a; border: 15px solid #5d3f1a; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); cursor: crosshair; }
-        .info { margin: 10px; font-size: 1.2rem; }
-        .controls { color: #bdc3c7; font-size: 0.9rem; }
+        body { background: #1a1a1a; display: flex; flex-direction: row; align-items: flex-start; justify-content: center; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; overflow: hidden; }
+        .config-panel { background: #2c3e50; padding: 20px; border-radius: 10px; border: 2px solid #34495e; margin-right: 20px; min-width: 200px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .config-panel h2 { margin-top: 0; color: #f1c40f; font-size: 1.2rem; border-bottom: 1px solid #555; padding-bottom: 10px; }
+        .group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #bdc3c7; }
+        select { width: 100%; padding: 8px; border-radius: 5px; background: #34495e; color: white; border: none; cursor: pointer; }
+        .game-container { display: flex; flex-direction: column; align-items: center; }
+        .ui { margin-bottom: 15px; text-align: center; }
+        canvas { background: #076324; border: 18px solid #3d2b1f; border-radius: 15px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); cursor: none; }
+        #status { font-weight: bold; font-size: 1.2rem; color: #f1c40f; min-height: 1.5em; text-transform: uppercase; }
+        .player-info { display: flex; gap: 40px; margin-top: 10px; }
+        .active-player { border-bottom: 3px solid #f1c40f; font-weight: bold; }
+        .ball-type { padding: 2px 8px; border-radius: 4px; background: #333; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-    <div class="info" id="status">À vous de jouer !</div>
-    <canvas id="poolTable" width="800" height="400"></canvas>
-    <div class="controls">Cliquez et glissez pour viser | Relâchez pour tirer</div>
+    <div class="config-panel">
+        <h2>Customisation</h2>
+        <div class="group">
+            <label>Couleur du Tapis</label>
+            <select id="tableColor">
+                <option value="#0a5d1a">Vert Classique</option>
+                <option value="#1e3799">Bleu Tournoi</option>
+                <option value="#b33939">Rouge Royal</option>
+            </select>
+        </div>
+        <div class="group">
+            <label>Style de la Queue</label>
+            <select id="cueStyle">
+                <option value="wood">Bois Traditionnel</option>
+                <option value="carbon">Carbone Noir</option>
+                <option value="gold">Or Luxueux</option>
+            </select>
+        </div>
+        <button onclick="location.reload()" style="width:100%; padding:10px; background:#e67e22; border:none; color:white; border-radius:5px; cursor:pointer; font-weight:bold;">Réinitialiser</button>
+    </div>
+
+    <div class="game-container">
+        <div class="ui">
+            <div id="status">Cassez le triangle !</div>
+            <div class="player-info">
+                <div id="p1-ui" class="active-player">Joueur : <span id="p1-type" class="ball-type">Libre</span></div>
+                <div id="p2-ui">Bot : <span id="p2-type" class="ball-type">Libre</span></div>
+            </div>
+        </div>
+        <canvas id="poolTable" width="900" height="450"></canvas>
+    </div>
 
     <script>
         const canvas = document.getElementById('poolTable');
         const ctx = canvas.getContext('2d');
-        const status = document.getElementById('status');
+        const statusDisplay = document.getElementById('status');
+        
+        const optTable = document.getElementById('tableColor');
+        const optCue = document.getElementById('cueStyle');
 
-        // Configuration
-        const ballRadius = 10;
-        const friction = 0.985; // Ralentissement progressif
-        let isPlayerTurn = true;
-        let isMoving = false;
+        const ballRadius = 13, friction = 0.985, pocketRadius = 26;
+        let isPlayerTurn = true, isMoving = false, groupAssigned = false;
+        let playerGroup = null, ballPottedThisTurn = false, cueBallPotted = false;
+        let isDragging = false, mouseX = 0, mouseY = 0;
+        let botThinking = false; // Sécurité pour le Bot
 
-        // Souris / Visée
-        let isDragging = false;
-        let dragStartX, dragStartY;
-        let mouseX, mouseY;
-
-        // Structure d'une bille
         class Ball {
-            constructor(x, y, color, isCue = false) {
-                this.x = x;
-                this.y = y;
-                this.vx = 0;
-                this.vy = 0;
-                this.color = color;
-                this.isCue = isCue;
+            constructor(x, y, color, number, type) {
+                this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+                this.color = color; this.number = number; this.type = type;
                 this.inPocket = false;
             }
 
             draw() {
                 if (this.inPocket) return;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, ballRadius, 0, Math.PI * 2);
-                ctx.fillStyle = this.color;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.beginPath(); ctx.arc(2, 2, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fill();
+                ctx.beginPath(); ctx.arc(0, 0, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = (this.type === 'striped') ? 'white' : this.color;
+                if (this.type === 'cue') ctx.fillStyle = 'white';
                 ctx.fill();
-                ctx.closePath();
+                if (this.type === 'striped') {
+                    ctx.beginPath(); ctx.rect(-ballRadius, -ballRadius/2, ballRadius*2, ballRadius);
+                    ctx.fillStyle = this.color; ctx.fill();
+                }
+                if (this.type !== 'cue') {
+                    ctx.beginPath(); ctx.arc(0, 0, ballRadius/1.9, 0, Math.PI * 2);
+                    ctx.fillStyle = "white"; ctx.fill();
+                    ctx.fillStyle = "black"; ctx.font = "bold 9px Arial";
+                    ctx.textAlign = "center"; ctx.fillText(this.number, 0, 3);
+                }
+                ctx.restore();
             }
 
             update() {
                 if (this.inPocket) return;
-                
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vx *= friction;
-                this.vy *= friction;
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= friction; this.vy *= friction;
+                if (Math.abs(this.vx) < 0.15) this.vx = 0;
+                if (Math.abs(this.vy) < 0.15) this.vy = 0;
 
-                // Arrêt si trop lent
-                if (Math.abs(this.vx) < 0.1) this.vx = 0;
-                if (Math.abs(this.vy) < 0.1) this.vy = 0;
-
-                // Rebond sur les bords
                 if (this.x + ballRadius > canvas.width || this.x - ballRadius < 0) {
-                    this.vx = -this.vx;
+                    this.vx *= -0.7; this.x = this.x < ballRadius ? ballRadius : canvas.width - ballRadius;
                 }
                 if (this.y + ballRadius > canvas.height || this.y - ballRadius < 0) {
-                    this.vy = -this.vy;
+                    this.vy *= -0.7; this.y = this.y < ballRadius ? ballRadius : canvas.height - ballRadius;
                 }
 
-                // Vérification des poches (coins et milieu)
-                const pockets = [
-                    [0,0], [400,0], [800,0],
-                    [0,400], [400,400], [800,400]
-                ];
-                pockets.forEach(p => {
-                    let dist = Math.hypot(this.x - p[0], this.y - p[1]);
-                    if (dist < 25) {
-                        this.inPocket = true;
-                        this.vx = 0; this.vy = 0;
+                [[0,0], [450,0], [900,0], [0,450], [450,450], [900,450]].forEach(p => {
+                    if (Math.hypot(this.x - p[0], this.y - p[1]) < pocketRadius) {
+                        this.inPocket = true; this.vx = 0; this.vy = 0;
+                        if (this.type === 'cue') cueBallPotted = true;
+                        else if (this.type === 'black') { 
+                            statusDisplay.innerText = "FIN DE PARTIE"; 
+                            setTimeout(() => location.reload(), 3000); 
+                        } else {
+                            if (!groupAssigned) {
+                                groupAssigned = true;
+                                playerGroup = isPlayerTurn ? this.type : (this.type === 'solid' ? 'striped' : 'solid');
+                                document.getElementById('p1-type').innerText = playerGroup.toUpperCase();
+                                document.getElementById('p2-type').innerText = (playerGroup === 'solid' ? 'striped' : 'solid').toUpperCase();
+                            }
+                            let currentBotG = (playerGroup === 'solid' ? 'striped' : 'solid');
+                            if (isPlayerTurn && this.type === playerGroup) ballPottedThisTurn = true;
+                            if (!isPlayerTurn && this.type === currentBotG) ballPottedThisTurn = true;
+                        }
                     }
                 });
             }
         }
 
         let balls = [];
-        const cueBall = new Ball(200, 200, 'white', true);
+        const cueBall = new Ball(220, 225, 'white', 0, 'cue');
 
-        function initBalls() {
+        function initGame() {
             balls = [cueBall];
-            // Création d'un triangle de billes rouges
-            for(let i=0; i<4; i++) {
-                for(let j=0; j<=i; j++) {
-                    balls.push(new Ball(500 + i*20, 170 + j*22 - i*11, 'red'));
+            const colors = ["#f1c40f", "#2980b9", "#e74c3c", "#8e44ad", "#e67e22", "#27ae60", "#924e0b"];
+            const pattern = [{n:1,t:'solid'},{n:9,t:'striped'},{n:2,t:'solid'},{n:10,t:'striped'},{n:8,t:'black'},{n:3,t:'solid'},{n:4,t:'solid'},{n:11,t:'striped'},{n:12,t:'striped'},{n:5,t:'solid'},{n:13,t:'striped'},{n:6,t:'solid'},{n:14,t:'striped'},{n:7,t:'solid'},{n:15,t:'striped'}];
+            let idx = 0;
+            for(let row=0; row<5; row++) {
+                for(let col=0; col<=row; col++) {
+                    const b = pattern[idx++];
+                    balls.push(new Ball(600 + row*24, 225 + col*28 - row*14, b.t === 'black' ? '#000' : colors[(b.n-1)%7], b.n, b.t));
                 }
             }
         }
 
-        // Gestion des collisions entre billes
-        function resolveCollision(b1, b2) {
-            let dx = b2.x - b1.x;
-            let dy = b2.y - b1.y;
-            let distance = Math.hypot(dx, dy);
+        function drawAimAndCue() {
+            if (isMoving || !isPlayerTurn) return;
+            let dx = mouseX - cueBall.x, dy = mouseY - cueBall.y;
+            let angle = Math.atan2(dy, dx), dist = Math.hypot(dx, dy);
 
-            if (distance < ballRadius * 2) {
-                let angle = Math.atan2(dy, dx);
-                let sin = Math.sin(angle);
-                let cos = Math.cos(angle);
+            ctx.save();
+            ctx.beginPath(); ctx.setLineDash([5, 5]);
+            ctx.moveTo(cueBall.x, cueBall.y);
+            ctx.lineTo(cueBall.x - Math.cos(angle) * 1000, cueBall.y - Math.sin(angle) * 1000);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.2)"; ctx.stroke();
+            ctx.restore();
 
-                // Rotation des vitesses
-                let vx1 = b1.vx * cos + b1.vy * sin;
-                let vy1 = b1.vy * cos - b1.vx * sin;
-                let vx2 = b2.vx * cos + b2.vy * sin;
-                let vy2 = b2.vy * cos - b2.vx * sin;
-
-                // Échange des vitesses (masse égale)
-                let temp = vx1; vx1 = vx2; vx2 = temp;
-
-                // On replace les billes pour éviter qu'elles s'encastrent
-                let overlap = ballRadius * 2 - distance;
-                b1.x -= (overlap / 2) * cos;
-                b1.y -= (overlap / 2) * sin;
-                b2.x += (overlap / 2) * cos;
-                b2.y += (overlap / 2) * sin;
-
-                b1.vx = vx1 * cos - vy1 * sin;
-                b1.vy = vy1 * cos + vx1 * sin;
-                b2.vx = vx2 * cos - vy2 * sin;
-                b2.vy = vy2 * cos + vx2 * sin;
-            }
+            let recoil = isDragging ? Math.min(dist, 150) : 25;
+            ctx.save();
+            ctx.translate(cueBall.x, cueBall.y); ctx.rotate(angle);
+            ctx.beginPath();
+            ctx.moveTo(recoil + 15, -3); ctx.lineTo(recoil + 350, -7); ctx.lineTo(recoil + 350, 7); ctx.lineTo(recoil + 15, 3);
+            ctx.closePath();
+            let grad = ctx.createLinearGradient(recoil + 15, 0, recoil + 350, 0);
+            if(optCue.value === 'wood') { grad.addColorStop(0, '#f3e5ab'); grad.addColorStop(0.2, '#5d3f1a'); grad.addColorStop(1, '#2d1f0e'); }
+            else if(optCue.value === 'carbon') { grad.addColorStop(0, '#555'); grad.addColorStop(0.2, '#111'); grad.addColorStop(1, '#000'); }
+            else { grad.addColorStop(0, '#fff200'); grad.addColorStop(0.5, '#f1c40f'); grad.addColorStop(1, '#9a7d0a'); }
+            ctx.fillStyle = grad; ctx.fill();
+            ctx.restore();
         }
 
-        // IA du Bot
-        function botPlay() {
-            if (!isPlayerTurn && !isMoving) {
-                status.innerText = "Le bot réfléchit...";
-                setTimeout(() => {
-                    // Trouver la bille rouge la plus proche non empochée
-                    const targets = balls.filter(b => !b.isCue && !b.inPocket);
-                    if (targets.length === 0) return;
-
-                    let target = targets[0];
-                    let dx = target.x - cueBall.x;
-                    let dy = target.y - cueBall.y;
-                    
-                    // Tirer vers la cible avec une force aléatoire
-                    let power = 0.15;
-                    cueBall.vx = dx * power;
-                    cueBall.vy = dy * power;
-                    
-                    isMoving = true;
-                    isPlayerTurn = true;
-                    status.innerText = "À vous de jouer !";
-                }, 1500);
-            }
-        }
-
-        // Boucle de rendu
         function update() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = optTable.value; ctx.fillRect(0,0,900,450);
+            ctx.fillStyle = "#000";
+            [[0,0], [450,0], [900,0], [0,450], [450,450], [900,450]].forEach(p => {
+                ctx.beginPath(); ctx.arc(p[0], p[1], pocketRadius, 0, Math.PI*2); ctx.fill();
+            });
+            
+            let movingNow = balls.some(b => Math.abs(b.vx) > 0.01 || Math.abs(b.vy) > 0.01);
+            
+            if (isMoving && !movingNow) {
+                isMoving = false;
+                if (cueBallPotted) {
+                    cueBall.inPocket = false; cueBall.x = 220; cueBall.y = 225;
+                    cueBall.vx = 0; cueBall.vy = 0; isPlayerTurn = !isPlayerTurn;
+                } else if (!ballPottedThisTurn) {
+                    isPlayerTurn = !isPlayerTurn;
+                }
+                ballPottedThisTurn = false; cueBallPotted = false;
+                document.getElementById('p1-ui').className = isPlayerTurn ? 'active-player' : '';
+                document.getElementById('p2-ui').className = !isPlayerTurn ? 'active-player' : '';
+                statusDisplay.innerText = isPlayerTurn ? "À vous !" : "Le Bot joue...";
+            }
 
-            // Dessiner les poches (cercles noirs)
-            ctx.fillStyle = "black";
-            [0, 400, 800].forEach(x => {
-                [0, 400].forEach(y => {
-                    ctx.beginPath();
-                    ctx.arc(x, y, 25, 0, Math.PI * 2);
-                    ctx.fill();
-                });
+            balls.forEach((b, i) => {
+                if(!b.inPocket) {
+                    b.update();
+                    for(let j=i+1; j<balls.length; j++) {
+                        if(!balls[j].inPocket) {
+                            let dx = balls[j].x - b.x, dy = balls[j].y - b.y, dist = Math.hypot(dx, dy);
+                            if(dist < ballRadius*2) {
+                                let ang = Math.atan2(dy, dx);
+                                let v1 = Math.hypot(b.vx, b.vy), v2 = Math.hypot(balls[j].vx, balls[j].vy);
+                                let d1 = Math.atan2(b.vy, b.vx), d2 = Math.atan2(balls[j].vy, balls[j].vx);
+                                b.vx = Math.cos(ang) * (v2 * Math.cos(d2-ang)) + Math.cos(ang + Math.PI/2) * (v1 * Math.sin(d1-ang));
+                                b.vy = Math.sin(ang) * (v2 * Math.cos(d2-ang)) + Math.sin(ang + Math.PI/2) * (v1 * Math.sin(d1-ang));
+                                balls[j].vx = Math.cos(ang) * (v1 * Math.cos(d1-ang)) + Math.cos(ang + Math.PI/2) * (v2 * Math.sin(d2-ang));
+                                balls[j].vy = Math.sin(ang) * (v1 * Math.cos(d1-ang)) + Math.sin(ang + Math.PI/2) * (v2 * Math.sin(d2-ang));
+                                let over = ballRadius*2.01 - dist;
+                                b.x -= Math.cos(ang)*over/2; b.y -= Math.sin(ang)*over/2;
+                                balls[j].x += Math.cos(ang)*over/2; balls[j].y += Math.sin(ang)*over/2;
+                            }
+                        }
+                    }
+                    b.draw();
+                }
             });
 
-            isMoving = balls.some(b => Math.abs(b.vx) > 0 || Math.abs(b.vy) > 0);
-
-            // Physique
-            for (let i = 0; i < balls.length; i++) {
-                balls[i].update();
-                for (let j = i + 1; j < balls.length; j++) {
-                    if (!balls[i].inPocket && !balls[j].inPocket) {
-                        resolveCollision(balls[i], balls[j]);
-                    }
-                }
-                balls[i].draw();
-            }
-
-            // Dessiner la ligne de visée
-            if (isDragging && isPlayerTurn && !isMoving) {
-                ctx.beginPath();
-                ctx.moveTo(cueBall.x, cueBall.y);
-                ctx.lineTo(cueBall.x - (mouseX - dragStartX), cueBall.y - (mouseY - dragStartY));
-                ctx.strokeStyle = "rgba(255,255,255,0.5)";
-                ctx.stroke();
-            }
-
-            // Gérer le tour du bot
-            if (!isMoving && !isPlayerTurn) {
-                botPlay();
-            }
-
-            // Si la bille blanche est empochée, on la remet au centre
-            if (cueBall.inPocket) {
-                cueBall.inPocket = false;
-                cueBall.x = 200; cueBall.y = 200;
-                cueBall.vx = 0; cueBall.vy = 0;
-            }
+            if (!isMoving && isPlayerTurn) drawAimAndCue();
+            if (!isMoving && !isPlayerTurn && !botThinking) executeBotTurn();
 
             requestAnimationFrame(update);
         }
 
-        // Événements souris
-        canvas.addEventListener('mousedown', e => {
-            if (!isMoving && isPlayerTurn) {
-                isDragging = true;
-                dragStartX = e.offsetX;
-                dragStartY = e.offsetY;
-            }
-        });
+        function executeBotTurn() {
+            botThinking = true;
+            setTimeout(() => {
+                if (isMoving || isPlayerTurn) { botThinking = false; return; }
+                
+                let botG = (playerGroup === 'solid' ? 'striped' : 'solid');
+                let targets = balls.filter(b => !b.inPocket && b.type !== 'cue' && (groupAssigned ? b.type === botG : b.type !== 'black'));
+                
+                if (targets.length === 0) targets = balls.filter(b => !b.inPocket && b.type === 'black');
 
-        canvas.addEventListener('mousemove', e => {
-            mouseX = e.offsetX;
-            mouseY = e.offsetY;
-        });
+                if (targets.length > 0) {
+                    let t = targets[Math.floor(Math.random() * targets.length)];
+                    let angle = Math.atan2(t.y - cueBall.y, t.x - cueBall.x);
+                    let power = 10 + Math.random() * 5;
+                    cueBall.vx = Math.cos(angle) * power;
+                    cueBall.vy = Math.sin(angle) * power;
+                    isMoving = true;
+                }
+                botThinking = false;
+            }, 1000);
+        }
 
-        window.addEventListener('mouseup', e => {
+        canvas.addEventListener('mousedown', () => { if(!isMoving && isPlayerTurn) isDragging = true; });
+        canvas.addEventListener('mousemove', e => { mouseX = e.offsetX; mouseY = e.offsetY; });
+        window.addEventListener('mouseup', () => {
             if (isDragging) {
-                let dx = e.offsetX - dragStartX;
-                let dy = e.offsetY - dragStartY;
-                
-                cueBall.vx = -dx * 0.15; // Puissance du tir
-                cueBall.vy = -dy * 0.15;
-                
-                isDragging = false;
-                isMoving = true;
-                isPlayerTurn = false;
-                status.innerText = "Tour du Bot...";
+                let dx = mouseX - cueBall.x, dy = mouseY - cueBall.y;
+                let power = Math.min(Math.hypot(dx, dy) * 0.12, 16);
+                let angle = Math.atan2(dy, dx);
+                cueBall.vx = -Math.cos(angle) * power; cueBall.vy = -Math.sin(angle) * power;
+                isDragging = false; isMoving = true;
             }
         });
 
-        initBalls();
+        initGame();
         update();
     </script>
 </body>
 </html>
+
