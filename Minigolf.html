@@ -2,274 +2,553 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>MiniGolf HTML5 - Version Améliorée</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniGolf Pro - Trilogy Deluxe</title>
     <style>
+        :root {
+            --bg-color: #0f172a;
+            --accent-color: #10b981;
+            --ui-bg: #1e293b;
+        }
+
         body {
-            background: #333;
+            background: var(--bg-color);
             color: white;
-            font-family: sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             margin: 0;
-            padding: 20px;
+            padding: 20px 10px 100px 10px;
+            overflow-y: auto;
+            user-select: none;
         }
-        #game-container {
-            position: relative;
-            margin-top: 20px;
-        }
-        canvas {
-            background: linear-gradient(to bottom, #2e7d32, #1b5e20);
-            border: 5px solid #5d4037;
-            border-radius: 10px;
-            cursor: crosshair;
-        }
-        .controls {
+
+        h1 { margin: 10px 0; text-transform: uppercase; letter-spacing: 4px; font-weight: 900; }
+
+        #game-header {
             display: flex;
             gap: 20px;
-            margin-top: 20px;
+            margin-bottom: 10px;
             align-items: center;
+            width: 800px;
+            justify-content: space-between;
         }
+
+        .level-indicator {
+            padding: 8px 20px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        #game-container { position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+
+        canvas { background: #111; display: block; cursor: crosshair; }
+
+        .difficulty-selector {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 15px;
+        }
+        .diff-btn {
+            padding: 10px 20px;
+            border: 2px solid #1e293b;
+            background: #1e293b;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 12px;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+        .diff-btn.selected {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 40px;
+            background: var(--ui-bg);
+            padding: 25px 40px;
+            border-radius: 0 0 25px 25px;
+            align-items: center;
+            border: 1px solid #334155;
+            width: fit-content;
+            margin-top: -5px;
+            margin-bottom: 40px;
+        }
+
         .gauge-container {
-            background: #555;
-            border: 2px solid #fff;
+            background: #020617;
+            border: 2px solid #334155;
             position: relative;
             overflow: hidden;
-        }
-        #power-gauge-ui {
-            width: 30px;
-            height: 150px;
-            display: flex;
-            flex-direction: column-reverse;
-        }
-        #direction-gauge-ui {
-            width: 150px;
-            height: 30px;
-        }
-        .bar {
-            position: absolute;
-        }
-        #power-bar {
-            width: 100%;
-            bottom: 0;
-            height: 0%;
-            background: linear-gradient(to top, #4caf50, #ffeb3b, #f44336);
-        }
-        #direction-bar {
-            height: 100%;
-            left: 0;
-            width: 5%;
-            background: #2196f3;
-        }
-        .active {
-            border-color: #00ff00;
-            box-shadow: 0 0 10px #00ff00;
-        }
-        .label {
-            text-align: center;
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-        #score-display {
-            font-size: 24px;
-            margin: 10px;
-        }
-        #success-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: gold;
-            font-size: 36px;
-            padding: 20px;
             border-radius: 10px;
-            display: none;
-            text-align: center;
         }
-        #resetBtn {
-            padding: 10px;
-            display: none;
+
+        #power-gauge-ui { width: 45px; height: 110px; display: flex; flex-direction: column-reverse; }
+        
+        .bar { position: absolute; transition: 0.05s ease-out; }
+        #power-bar {
+            width: 100%; bottom: 0; height: 0%;
+            background: linear-gradient(to top, #10b981, #facc15, #ef4444);
         }
+
+        .active { border-color: var(--accent-color); box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+        .label { text-align: center; font-size: 11px; font-weight: 800; margin-bottom: 6px; color: #64748b; letter-spacing: 1px; }
+
+        #overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 6, 23, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            display: none;
+            backdrop-filter: blur(5px);
+        }
+
+        #summary-screen {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: #0f172a;
+            padding: 40px;
+            border-radius: 30px;
+            border: 2px solid var(--accent-color);
+            z-index: 200;
+            display: none;
+            width: 400px;
+            box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        }
+
+        button {
+            background: var(--accent-color);
+            color: #022c22;
+            border: none;
+            padding: 14px 30px;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+            transition: all 0.2s;
+        }
+
+        #instruction-hint {
+            margin-top: 10px;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        #score-display { font-size: 22px; font-weight: 900; color: #fff; background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 10px; }
     </style>
 </head>
 <body>
-    <h1>MiniGolf : 2 Clics pour Tirer</h1>
-    <p>1er clic : Puissance | 2ème clic : Direction</p>
-    <div id="score-display">Coups : 0</div>
+
+    <h1>MINIGOLF <span id="title-accent" style="color:#10b981">TRILOGY++</span></h1>
+
+    <div class="difficulty-selector">
+        <button class="diff-btn selected" id="btn-easy" onclick="setDifficulty('EASY')">MODE FACILE (AIMANT)</button>
+        <button class="diff-btn" id="btn-hard" onclick="setDifficulty('HARD')">MODE DIFFICILE</button>
+    </div>
+
+    <div id="game-header">
+        <div id="level-name" class="level-indicator">NIVEAU 1 : ROYAL GREEN</div>
+        <div id="score-display">COUPS : 0</div>
+    </div>
 
     <div id="game-container">
-        <canvas id="golfCanvas" width="600" height="400"></canvas>
-        <div id="success-message">Trou en 1 !<br><span id="shots-display">Coups : 0</span></div>
+        <canvas id="golfCanvas" width="800" height="450"></canvas>
+        
+        <div id="overlay">
+            <h2 id="overlay-title" style="font-size: 40px; color: gold; margin: 0;">BIEN JOUÉ !</h2>
+            <p id="overlay-stats" style="font-size: 20px;"></p>
+            <button id="next-btn" onclick="nextLevel()">NIVEAU SUIVANT</button>
+        </div>
     </div>
 
     <div class="controls">
         <div>
-            <div class="label">PUISSANCE</div>
+            <div class="label">PUISSANCE (MAINTENIR)</div>
             <div id="power-gauge-ui" class="gauge-container">
                 <div id="power-bar" class="bar"></div>
             </div>
         </div>
-        <div>
-            <div class="label">DIRECTION</div>
-            <div id="direction-gauge-ui" class="gauge-container">
-                <div id="direction-bar" class="bar"></div>
-            </div>
+        <div id="instruction-hint">
+            <strong>CONTRÔLES :</strong><br>
+            1. 🖱️ Maintenez clic pour charger<br>
+            2. 🎯 Relâchez, visez la cible<br>
+            3. 🚀 Cliquez pour lancer la balle
         </div>
-        <button id="resetBtn" onclick="resetBall()">Rejouer</button>
+    </div>
+
+    <div id="summary-screen">
+        <h2 style="color: #10b981; font-size: 32px; text-align: center;">🏆 CARTE DE SCORE</h2>
+        <div id="final-stats-list" style="margin: 20px 0;"></div>
+        <button style="width: 100%" onclick="location.reload()">REJOUER LE PARCOURS</button>
     </div>
 
     <script>
         const canvas = document.getElementById('golfCanvas');
         const ctx = canvas.getContext('2d');
-        const successMessage = document.getElementById('success-message');
-        const shotsDisplay = document.getElementById('shots-display');
+        const powerBar = document.getElementById('power-bar');
+        const overlay = document.getElementById('overlay');
         const scoreDisplay = document.getElementById('score-display');
 
-        // État du jeu
-        let ball = { x: 100, y: 200, r: 10, vx: 0, vy: 0, friction: 0.98 };
-        let hole = { x: 500, y: 200, r: 15 };
-        let obstacle = { x: 300, y: 100, w: 20, h: 200 };
-        let shots = 0;
-
-        let gameState = "WAITING"; // WAITING, POWER, DIRECTION, MOVING, HOLE
+        let difficulty = "EASY";
+        let currentLevelIndex = 0;
+        let totalShots = [];
+        let shotsInLevel = 0;
+        let gameState = "WAITING"; 
+        
+        let ball = { x: 0, y: 0, r: 8, vx: 0, vy: 0, friction: 0.985 };
+        let hole = { x: 0, y: 0, r: 15 };
+        let walls = [];
+        let patterns = []; 
         let powerVal = 0;
-        let powerDir = 1;
-        let dirVal = 50; // 0 à 100 (50 = milieu)
-        let dirSwap = 1;
+        let mouseX = 0, mouseY = 0;
+        let animationFrame = 0;
 
-        // Éléments UI
-        const powerBar = document.getElementById('power-bar');
-        const directionBar = document.getElementById('direction-bar');
+        const LEVELS = [
+            {
+                name: "NIVEAU 1 : ROYAL GREEN",
+                colors: { bg1: "#15803d", bg2: "#166534", wall: "#5d4037", accent: "#ffffff", holeHalo: "rgba(255, 255, 255, 0.15)", pattern: "rgba(255, 255, 255, 0.08)" },
+                ballStart: { x: 120, y: 225 },
+                holePos: { x: 680, y: 225 },
+                walls: [{ x: 385, y: 100, w: 30, h: 250 }]
+            },
+            {
+                name: "NIVEAU 2 : EMERALD LABYRINTH",
+                colors: { bg1: "#064e3b", bg2: "#022c22", wall: "#0f172a", accent: "#10b981", holeHalo: "rgba(16, 185, 129, 0.2)", pattern: "rgba(16, 185, 129, 0.1)" },
+                ballStart: { x: 80, y: 80 },
+                holePos: { x: 720, y: 370 },
+                walls: [
+                    { x: 220, y: 0, w: 30, h: 320 },
+                    { x: 385, y: 150, w: 30, h: 150 }, 
+                    { x: 550, y: 130, w: 30, h: 320 }
+                ]
+            },
+            {
+                name: "NIVEAU 3 : MAGMA PEAKS",
+                colors: { bg1: "#450a0a", bg2: "#1c0000", wall: "#27272a", accent: "#ffffff", holeHalo: "rgba(239, 68, 68, 0.3)", pattern: "rgba(239, 68, 68, 0.12)" },
+                ballStart: { x: 100, y: 225 },
+                holePos: { x: 700, y: 225 },
+                walls: [
+                    { x: 250, y: 50, w: 40, h: 120 },
+                    { x: 250, y: 280, w: 40, h: 120 },
+                    { x: 400, y: 160, w: 40, h: 130 },
+                    { x: 550, y: 50, w: 40, h: 120 },
+                    { x: 550, y: 280, w: 40, h: 120 }
+                ]
+            },
+            {
+                name: "NIVEAU 4 : AZURE COAST",
+                colors: { bg1: "#075985", bg2: "#0c4a6e", wall: "#f8fafc", accent: "#ffffff", holeHalo: "rgba(255, 255, 255, 0.25)", pattern: "rgba(186, 230, 253, 0.15)" },
+                ballStart: { x: 400, y: 410 },
+                holePos: { x: 400, y: 40 },
+                walls: [
+                    // Murs horizontaux restreints pour ne pas aller tout en haut près du trou
+                    { x: 100, y: 250, w: 200, h: 25, moving: true, range: 150, axis: 'x', startX: 100 },
+                    { x: 500, y: 250, w: 200, h: 25, moving: true, range: 150, axis: 'x', startX: 500 },
+                    // Mur vertical décalé vers le bas pour ne pas masquer le trou
+                    { x: 300, y: 150, w: 200, h: 25, moving: true, range: 80, axis: 'y', startY: 150 }
+                ]
+            },
+            {
+                name: "NIVEAU 5 : VOID INFINITY",
+                colors: { bg1: "#1e1b4b", bg2: "#0f172a", wall: "#ffffff", accent: "#c084fc", holeHalo: "rgba(192, 132, 252, 0.3)", pattern: "rgba(192, 132, 252, 0.15)" },
+                ballStart: { x: 70, y: 225 },
+                holePos: { x: 730, y: 225 },
+                walls: [
+                    { x: 250, y: 50, w: 25, h: 120, moving: true, range: 250, axis: 'y', startY: 50 },
+                    { x: 400, y: 150, w: 25, h: 150, moving: true, range: 120, axis: 'y', startY: 150 },
+                    { x: 550, y: 280, w: 25, h: 120, moving: true, range: 250, axis: 'y', startY: 50 }
+                ]
+            }
+        ];
+
+        function setDifficulty(mode) {
+            difficulty = mode;
+            document.getElementById('btn-easy').classList.toggle('selected', mode === 'EASY');
+            document.getElementById('btn-hard').classList.toggle('selected', mode === 'HARD');
+        }
+
+        function generatePatterns() {
+            patterns = [];
+            for(let i=0; i<60; i++) {
+                patterns.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 25 + 10,
+                    opacity: Math.random() * 0.5 + 0.5,
+                    rotation: Math.random() * Math.PI
+                });
+            }
+        }
+
+        function initLevel(index) {
+            const lvl = LEVELS[index];
+            currentLevelIndex = index;
+            shotsInLevel = 0;
+            scoreDisplay.textContent = `COUPS : 0`;
+            document.getElementById('level-name').textContent = lvl.name;
+            generatePatterns();
+            
+            const titleAccent = document.getElementById('title-accent');
+            if (index === 2) titleAccent.style.color = "#ef4444";
+            else if (index === 3) titleAccent.style.color = "#0ea5e9";
+            else if (index === 4) titleAccent.style.color = "#a855f7";
+            else titleAccent.style.color = "#10b981";
+            
+            ball.x = lvl.ballStart.x;
+            ball.y = lvl.ballStart.y;
+            ball.vx = 0; ball.vy = 0;
+            hole.x = lvl.holePos.x;
+            hole.y = lvl.holePos.y;
+            walls = JSON.parse(JSON.stringify(lvl.walls));
+
+            gameState = "WAITING";
+            powerVal = 0;
+            powerBar.style.height = "0%";
+            overlay.style.display = "none";
+        }
 
         function update() {
-            if (gameState === "POWER") {
-                powerVal += 2 * powerDir;
-                if (powerVal >= 100 || powerVal <= 0) powerDir *= -1;
+            animationFrame++;
+
+            walls.forEach(w => {
+                if (w.moving) {
+                    let offset = Math.sin(animationFrame * 0.02) * w.range;
+                    if (w.axis === 'x') w.x = w.startX + offset;
+                    else if (w.axis === 'y') w.y = w.startY + offset;
+                }
+            });
+
+            if (gameState === "CHARGING") {
+                powerVal = Math.min(100, powerVal + 1.2);
                 powerBar.style.height = powerVal + "%";
             }
-            else if (gameState === "DIRECTION") {
-                dirVal += 2 * dirSwap;
-                if (dirVal >= 100 || dirVal <= 0) dirSwap *= -1;
-                directionBar.style.left = dirVal + "%";
-            }
             else if (gameState === "MOVING") {
+                let distToHole = Math.hypot(ball.x - hole.x, ball.y - hole.y);
+                
+                const haloLimit = difficulty === "EASY" ? 65 : 25;
+                const pullStrength = difficulty === "EASY" ? 0.45 : 0.15;
+
+                if (distToHole < haloLimit) {
+                    let angle = Math.atan2(hole.y - ball.y, hole.x - ball.x);
+                    ball.vx += Math.cos(angle) * pullStrength;
+                    ball.vy += Math.sin(angle) * pullStrength;
+                }
+
                 ball.x += ball.vx;
                 ball.y += ball.vy;
                 ball.vx *= ball.friction;
                 ball.vy *= ball.friction;
 
-                // Rebond murs
-                if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.vx *= -1;
-                if (ball.y < ball.r || ball.y > canvas.height - ball.r) ball.vy *= -1;
+                if (ball.x < ball.r) { ball.vx = Math.abs(ball.vx) * 0.8; ball.x = ball.r; }
+                if (ball.x > canvas.width - ball.r) { ball.vx = -Math.abs(ball.vx) * 0.8; ball.x = canvas.width - ball.r; }
+                if (ball.y < ball.r) { ball.vy = Math.abs(ball.vy) * 0.8; ball.y = ball.r; }
+                if (ball.y > canvas.height - ball.r) { ball.vy = -Math.abs(ball.vy) * 0.8; ball.y = canvas.height - ball.r; }
 
-                // Collision obstacle
-                if (ball.x + ball.r > obstacle.x && ball.x - ball.r < obstacle.x + obstacle.w &&
-                    ball.y + ball.r > obstacle.y && ball.y - ball.r < obstacle.y + obstacle.h) {
-                    ball.vx *= -1;
-                }
+                walls.forEach(w => {
+                    let closestX = Math.max(w.x, Math.min(ball.x, w.x + w.w));
+                    let closestY = Math.max(w.y, Math.min(ball.y, w.y + w.h));
+                    let dx = ball.x - closestX;
+                    let dy = ball.y - closestY;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
 
-                // Vérifier Trou
-                let dist = Math.hypot(ball.x - hole.x, ball.y - hole.y);
-                if (dist < hole.r) {
+                    if (distance < ball.r) {
+                        let nx = dx / (distance || 1);
+                        let ny = dy / (distance || 1);
+
+                        if (distance === 0) {
+                            nx = (ball.x < w.x + w.w/2) ? -1 : 1;
+                            ny = (ball.y < w.y + w.h/2) ? -1 : 1;
+                        }
+
+                        let dot = ball.vx * nx + ball.vy * ny;
+                        if (dot < 0) {
+                            ball.vx = (ball.vx - 2 * dot * nx) * 0.82; 
+                            ball.vy = (ball.vy - 2 * dot * ny) * 0.82;
+                        }
+                        let overlap = ball.r - distance;
+                        ball.x += nx * (overlap + 0.1); 
+                        ball.y += ny * (overlap + 0.1);
+                    }
+                });
+
+                if (distToHole < hole.r && Math.hypot(ball.vx, ball.vy) < 5) {
                     gameState = "HOLE";
                     ball.vx = 0; ball.vy = 0;
-                    successMessage.style.display = "block";
-                    shotsDisplay.textContent = `Coups : ${shots}`;
-                    document.getElementById('resetBtn').style.display = "block";
+                    levelComplete();
                 }
 
-                // Arrêt de la balle
                 if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1) {
                     ball.vx = 0; ball.vy = 0;
-                    gameState = "WAITING";
+                    if (gameState !== "HOLE") {
+                        gameState = "WAITING";
+                        powerVal = 0;
+                        powerBar.style.height = "0%";
+                    }
                 }
             }
+
             draw();
             requestAnimationFrame(update);
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const lvl = LEVELS[currentLevelIndex];
+            ctx.clearRect(0,0,800,450);
+            
+            let grad = ctx.createRadialGradient(400, 225, 50, 400, 225, 500);
+            grad.addColorStop(0, lvl.colors.bg1);
+            grad.addColorStop(1, lvl.colors.bg2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Dessiner le green (dégradé + motifs)
-            ctx.fillStyle = "rgba(0, 100, 0, 0.3)";
-            for (let i = 0; i < canvas.width; i += 20) {
-                for (let j = 0; j < canvas.height; j += 20) {
-                    ctx.fillRect(i, j, 10, 10);
-                }
-            }
+            ctx.strokeStyle = lvl.colors.pattern;
+            ctx.lineWidth = 2;
+            patterns.forEach(p => {
+                ctx.beginPath();
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation + animationFrame * 0.002);
+                ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                ctx.fillStyle = lvl.colors.pattern;
+                ctx.fill();
+                ctx.restore();
+            });
 
-            // Dessiner le trou (avec drapeau)
-            ctx.fillStyle = "black";
+            const haloLimit = difficulty === "EASY" ? 65 : 25;
+            ctx.fillStyle = lvl.colors.holeHalo;
+            ctx.beginPath();
+            ctx.arc(hole.x, hole.y, haloLimit, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#020617";
             ctx.beginPath();
             ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2);
             ctx.fill();
-            // Drapeau
-            ctx.fillStyle = "red";
-            ctx.fillRect(hole.x - 2, hole.y - 20, 4, 20);
-
-            // Dessiner l'obstacle (style "bunker")
-            ctx.fillStyle = "#8b4513";
-            ctx.fillRect(obstacle.x, obstacle.y, obstacle.w, obstacle.h);
-
-            // Dessiner la balle
-            ctx.fillStyle = "white";
+            
+            ctx.fillStyle = lvl.colors.accent;
+            ctx.fillRect(hole.x - 2, hole.y - 30, 3, 30);
             ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+            ctx.moveTo(hole.x + 1, hole.y - 30);
+            ctx.lineTo(hole.x + 15, hole.y - 22);
+            ctx.lineTo(hole.x + 1, hole.y - 15);
             ctx.fill();
-            ctx.strokeStyle = "#000";
-            ctx.stroke();
 
-            // Ligne de visée
-            if (gameState === "DIRECTION" || gameState === "POWER") {
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 4;
+            ctx.shadowColor = "rgba(0,0,0,0.4)";
+            ctx.fillStyle = lvl.colors.wall;
+            walls.forEach(w => {
+                ctx.fillRect(w.x, w.y, w.w, w.h);
+                ctx.strokeStyle = "rgba(255,255,255,0.15)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(w.x, w.y, w.w, w.h);
+            });
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            if (gameState === "AIMING") {
+                let angle = Math.atan2(mouseY - ball.y, mouseX - ball.x);
+                let dist = 40 + (powerVal * 1.5);
+                
                 ctx.beginPath();
-                ctx.setLineDash([5, 5]);
+                ctx.setLineDash([5, 8]);
+                ctx.lineWidth = 4;
+                let color = powerVal < 40 ? "#10b981" : (powerVal < 75 ? "#facc15" : "#ef4444");
+                ctx.strokeStyle = color;
                 ctx.moveTo(ball.x, ball.y);
-                let angle = ((dirVal - 50) * 0.02);
-                ctx.lineTo(ball.x + 50, ball.y + (angle * 100));
+                ctx.lineTo(ball.x + Math.cos(angle) * dist, ball.y + Math.sin(angle) * dist);
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
+
+            ctx.fillStyle = "white";
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = "rgba(255,255,255,0.7)";
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
         }
 
-        window.addEventListener('mousedown', () => {
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mousedown', () => {
             if (gameState === "WAITING") {
-                gameState = "POWER";
+                gameState = "CHARGING";
                 document.getElementById('power-gauge-ui').classList.add('active');
-            }
-            else if (gameState === "POWER") {
-                gameState = "DIRECTION";
-                document.getElementById('power-gauge-ui').classList.remove('active');
-                document.getElementById('direction-gauge-ui').classList.add('active');
-            }
-            else if (gameState === "DIRECTION") {
-                document.getElementById('direction-gauge-ui').classList.remove('active');
+            } else if (gameState === "AIMING") {
                 shoot();
             }
         });
 
+        window.addEventListener('mouseup', () => {
+            if (gameState === "CHARGING") {
+                gameState = "AIMING";
+                document.getElementById('power-gauge-ui').classList.remove('active');
+            }
+        });
+
         function shoot() {
-            const force = powerVal / 8;
-            const angle = (dirVal - 50) * 0.02;
-            ball.vx = force;
-            ball.vy = angle * force;
+            shotsInLevel++;
+            scoreDisplay.textContent = `COUPS : ${shotsInLevel}`;
+            let angle = Math.atan2(mouseY - ball.y, mouseX - ball.x);
+            let force = (powerVal / 5.0) + 2.0;
+            ball.vx = Math.cos(angle) * force;
+            ball.vy = Math.sin(angle) * force;
             gameState = "MOVING";
-            shots++;
-            scoreDisplay.textContent = `Coups : ${shots}`;
         }
 
-        function resetBall() {
-            ball.x = 100; ball.y = 200;
-            ball.vx = 0; ball.vy = 0;
-            gameState = "WAITING";
-            powerVal = 0; dirVal = 50;
-            successMessage.style.display = "none";
-            document.getElementById('resetBtn').style.display = "none";
-            shots = 0;
-            scoreDisplay.textContent = `Coups : ${shots}`;
+        function levelComplete() {
+            totalShots.push({ name: LEVELS[currentLevelIndex].name, score: shotsInLevel });
+            overlay.style.display = "flex";
+            document.getElementById('overlay-stats').innerHTML = `Niveau terminé en <span style="color:#10b981">${shotsInLevel}</span> coups !`;
+            if (currentLevelIndex === LEVELS.length - 1) {
+                document.getElementById('next-btn').textContent = "VOIR LE RÉSULTAT FINAL";
+                document.getElementById('next-btn').onclick = showSummary;
+            }
         }
 
+        function nextLevel() {
+            initLevel(currentLevelIndex + 1);
+        }
+
+        function showSummary() {
+            overlay.style.display = "none";
+            const summary = document.getElementById('summary-screen');
+            const list = document.getElementById('final-stats-list');
+            summary.style.display = "block";
+            let total = 0;
+            list.innerHTML = totalShots.map(s => {
+                total += s.score;
+                return `<div style="padding: 12px 0; border-bottom: 1px solid #334155; display:flex; justify-content:space-between">
+                            <span style="color:#94a3b8">${s.name}</span>
+                            <span style="font-weight:900">${s.score}</span>
+                        </div>`;
+            }).join('') + `<div style="font-size:24px; font-weight:900; color:#fff; margin-top:20px; text-align:right">SCORE TOTAL : ${total}</div>`;
+        }
+
+        initLevel(0);
         update();
     </script>
 </body>
