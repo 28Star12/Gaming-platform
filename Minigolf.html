@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiniGolf Pro - Multiplayer Edition</title>
+    <title>MiniGolf Pro - Trilogy Deluxe</title>
     <style>
         :root {
             --bg-color: #0f172a;
             --accent-color: #10b981;
             --ui-bg: #1e293b;
-            --player1-color: #3b82f6;
-            --player2-color: #ef4444;
         }
 
         body {
@@ -27,27 +25,6 @@
         }
 
         h1 { margin: 10px 0; text-transform: uppercase; letter-spacing: 4px; font-weight: 900; }
-
-        #multiplayer-lobby {
-            background: var(--ui-bg);
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            border: 1px solid #334155;
-            text-align: center;
-            width: 800px;
-        }
-
-        .lobby-controls { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
-        
-        input {
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #475569;
-            background: #0f172a;
-            color: white;
-            font-weight: bold;
-        }
 
         #game-header {
             display: flex;
@@ -67,9 +44,30 @@
             color: var(--accent-color);
         }
 
-        #game-container { position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: none; }
+        #game-container { position: relative; border-radius: 20px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
 
         canvas { background: #111; display: block; cursor: crosshair; }
+
+        .difficulty-selector {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 15px;
+        }
+        .diff-btn {
+            padding: 10px 20px;
+            border: 2px solid #1e293b;
+            background: #1e293b;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 12px;
+            font-weight: 700;
+            transition: 0.2s;
+        }
+        .diff-btn.selected {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
 
         .controls {
             display: flex;
@@ -82,7 +80,6 @@
             width: fit-content;
             margin-top: -5px;
             margin-bottom: 40px;
-            display: none;
         }
 
         .gauge-container {
@@ -104,21 +101,6 @@
         .active { border-color: var(--accent-color); box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
         .label { text-align: center; font-size: 11px; font-weight: 800; margin-bottom: 6px; color: #64748b; letter-spacing: 1px; }
 
-        #turn-indicator {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 30px;
-            border-radius: 50px;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            background: rgba(0,0,0,0.7);
-            border: 2px solid white;
-            z-index: 50;
-        }
-
         #overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -132,217 +114,290 @@
             backdrop-filter: blur(5px);
         }
 
+        #summary-screen {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: #0f172a;
+            padding: 40px;
+            border-radius: 30px;
+            border: 2px solid var(--accent-color);
+            z-index: 200;
+            display: none;
+            width: 400px;
+            box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        }
+
         button {
             background: var(--accent-color);
             color: #022c22;
             border: none;
-            padding: 12px 25px;
-            border-radius: 10px;
+            padding: 14px 30px;
+            border-radius: 12px;
             font-weight: 800;
             cursor: pointer;
-            transition: 0.2s;
+            font-size: 16px;
+            margin-top: 20px;
+            transition: all 0.2s;
         }
 
-        button:hover { opacity: 0.9; transform: translateY(-2px); }
-        button:disabled { background: #475569; cursor: not-allowed; }
+        #instruction-hint {
+            margin-top: 10px;
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.5;
+        }
 
-        #score-display { font-size: 18px; font-weight: 900; color: #fff; background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 10px; }
+        #score-display { font-size: 22px; font-weight: 900; color: #fff; background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>MINIGOLF <span id="title-accent" style="color:#10b981">MULTIPLAYER</span></h1>
+    <h1>MINIGOLF <span id="title-accent" style="color:#10b981">TRILOGY++</span></h1>
 
-    <div id="multiplayer-lobby">
-        <h3 style="margin-top:0">🎮 SALON MULTIJOUEUR</h3>
-        <p id="lobby-status">Connectez-vous pour commencer...</p>
-        <div class="lobby-controls">
-            <input type="text" id="room-id" placeholder="CODE DE SALLE (ex: 1234)">
-            <button id="btn-join" onclick="joinRoom()">REJOINDRE / CRÉER</button>
-        </div>
-        <div id="user-id-display" style="margin-top: 10px; font-size: 12px; opacity: 0.5;"></div>
+    <div class="difficulty-selector">
+        <button class="diff-btn selected" id="btn-easy" onclick="setDifficulty('EASY')">MODE FACILE (AIMANT)</button>
+        <button class="diff-btn" id="btn-hard" onclick="setDifficulty('HARD')">MODE DIFFICILE</button>
     </div>
 
-    <div id="game-header" style="display: none;">
-        <div id="level-name" class="level-indicator">ATTENTE DU JOUEUR 2...</div>
-        <div id="score-display">P1: 0 | P2: 0</div>
+    <div id="game-header">
+        <div id="level-name" class="level-indicator">NIVEAU 1 : ROYAL GREEN</div>
+        <div id="score-display">COUPS : 0</div>
     </div>
 
     <div id="game-container">
-        <div id="turn-indicator">ATTENTE...</div>
         <canvas id="golfCanvas" width="800" height="450"></canvas>
         
         <div id="overlay">
-            <h2 id="overlay-title" style="font-size: 40px; color: gold; margin: 0;">TERMINÉ !</h2>
+            <h2 id="overlay-title" style="font-size: 40px; color: gold; margin: 0;">BIEN JOUÉ !</h2>
             <p id="overlay-stats" style="font-size: 20px;"></p>
-            <button id="next-btn">NIVEAU SUIVANT</button>
+            <button id="next-btn" onclick="nextLevel()">NIVEAU SUIVANT</button>
         </div>
     </div>
 
-    <div class="controls" id="game-controls">
+    <div class="controls">
         <div>
-            <div class="label">PUISSANCE</div>
+            <div class="label">PUISSANCE (MAINTENIR)</div>
             <div id="power-gauge-ui" class="gauge-container">
                 <div id="power-bar" class="bar"></div>
             </div>
         </div>
-        <div id="instruction-hint" style="color: #94a3b8; font-size: 14px;">
-            <strong>VOTRE RÔLE :</strong> <span id="player-role-display">-</span><br>
-            Attendez votre tour pour tirer.
+        <div id="instruction-hint">
+            <strong>CONTRÔLES :</strong><br>
+            1. 🖱️ Maintenez clic pour charger<br>
+            2. 🎯 Relâchez, visez la cible<br>
+            3. 🚀 Cliquez pour lancer la balle
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <div id="summary-screen">
+        <h2 style="color: #10b981; font-size: 32px; text-align: center;">🏆 CARTE DE SCORE</h2>
+        <div id="final-stats-list" style="margin: 20px 0;"></div>
+        <button style="width: 100%" onclick="location.reload()">REJOUER LE PARCOURS</button>
+    </div>
 
-        // CONFIGURATION FIREBASE
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'minigolf-multi';
-
-        // ÉTAT DU JEU
-        let user = null;
-        let roomData = null;
-        let myPlayerNum = null; // 1 ou 2
-        let currentLevelIndex = 0;
-        let gameState = "LOBBY"; 
-
-        // CONFIG DES NIVEAUX (Simplifié pour le multijoueur)
-        const LEVELS = [
-            { name: "GREEN ARENA", start: {x: 100, y: 225}, hole: {x: 700, y: 225}, walls: [{x:385, y:100, w:30, h:250}] },
-            { name: "TWIN WALLS", start: {x: 80, y: 80}, hole: {x: 720, y: 370}, walls: [{x:220, y:0, w:30, h:300}, {x:550, y:150, w:30, h:300}] }
-        ];
-
-        // ÉLÉMENTS DU JEU
+    <script>
         const canvas = document.getElementById('golfCanvas');
         const ctx = canvas.getContext('2d');
         const powerBar = document.getElementById('power-bar');
+        const overlay = document.getElementById('overlay');
+        const scoreDisplay = document.getElementById('score-display');
+
+        let difficulty = "EASY";
+        let currentLevelIndex = 0;
+        let totalShots = [];
+        let shotsInLevel = 0;
+        let gameState = "WAITING"; 
         
-        let ballP1 = { x: 0, y: 0, vx: 0, vy: 0, score: 0, active: true };
-        let ballP2 = { x: 0, y: 0, vx: 0, vy: 0, score: 0, active: true };
-        let mouseX = 0, mouseY = 0, powerVal = 0, isCharging = false;
+        let ball = { x: 0, y: 0, r: 8, vx: 0, vy: 0, friction: 0.985 };
+        let hole = { x: 0, y: 0, r: 15 };
+        let walls = [];
+        let patterns = []; 
+        let powerVal = 0;
+        let mouseX = 0, mouseY = 0;
+        let animationFrame = 0;
 
-        // AUTHENTIFICATION
-        const initAuth = async () => {
-            await signInAnonymously(auth);
-            onAuthStateChanged(auth, (u) => {
-                user = u;
-                if(user) {
-                    document.getElementById('lobby-status').textContent = "Connecté. Entrez un code pour jouer.";
-                    document.getElementById('user-id-display').textContent = `Votre ID : ${user.uid}`;
-                }
-            });
-        };
-        initAuth();
-
-        // LOGIQUE MULTIJOUEUR
-        window.joinRoom = async () => {
-            const roomId = document.getElementById('room-id').value.trim();
-            if (!roomId || !user) return;
-
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-            const roomSnap = await getDoc(roomRef);
-
-            if (!roomSnap.exists()) {
-                // Créer la salle
-                myPlayerNum = 1;
-                const initialData = {
-                    p1: user.uid,
-                    p2: null,
-                    turn: 1,
-                    levelIndex: 0,
-                    p1Pos: { x: LEVELS[0].start.x, y: LEVELS[0].start.y },
-                    p2Pos: { x: LEVELS[0].start.x, y: LEVELS[0].start.y },
-                    p1Score: 0,
-                    p2Score: 0,
-                    lastShot: null,
-                    status: "waiting"
-                };
-                await setDoc(roomRef, initialData);
-            } else {
-                const data = roomSnap.data();
-                if (data.p1 === user.uid) {
-                    myPlayerNum = 1;
-                } else if (!data.p2 || data.p2 === user.uid) {
-                    myPlayerNum = 2;
-                    await updateDoc(roomRef, { p2: user.uid, status: "playing" });
-                } else {
-                    alert("Salle pleine !");
-                    return;
-                }
+        const LEVELS = [
+            {
+                name: "NIVEAU 1 : ROYAL GREEN",
+                colors: { bg1: "#15803d", bg2: "#166534", wall: "#5d4037", accent: "#ffffff", holeHalo: "rgba(255, 255, 255, 0.15)", pattern: "rgba(255, 255, 255, 0.08)" },
+                ballStart: { x: 120, y: 225 },
+                holePos: { x: 680, y: 225 },
+                walls: [{ x: 385, y: 100, w: 30, h: 250 }]
+            },
+            {
+                name: "NIVEAU 2 : EMERALD LABYRINTH",
+                colors: { bg1: "#064e3b", bg2: "#022c22", wall: "#0f172a", accent: "#10b981", holeHalo: "rgba(16, 185, 129, 0.2)", pattern: "rgba(16, 185, 129, 0.1)" },
+                ballStart: { x: 80, y: 80 },
+                holePos: { x: 720, y: 370 },
+                walls: [
+                    { x: 220, y: 0, w: 30, h: 320 },
+                    { x: 385, y: 150, w: 30, h: 150 }, 
+                    { x: 550, y: 130, w: 30, h: 320 }
+                ]
+            },
+            {
+                name: "NIVEAU 3 : MAGMA PEAKS",
+                colors: { bg1: "#450a0a", bg2: "#1c0000", wall: "#27272a", accent: "#ffffff", holeHalo: "rgba(239, 68, 68, 0.3)", pattern: "rgba(239, 68, 68, 0.12)" },
+                ballStart: { x: 100, y: 225 },
+                holePos: { x: 700, y: 225 },
+                walls: [
+                    { x: 250, y: 50, w: 40, h: 120 },
+                    { x: 250, y: 280, w: 40, h: 120 },
+                    { x: 400, y: 160, w: 40, h: 130 },
+                    { x: 550, y: 50, w: 40, h: 120 },
+                    { x: 550, y: 280, w: 40, h: 120 }
+                ]
+            },
+            {
+                name: "NIVEAU 4 : AZURE COAST",
+                colors: { bg1: "#075985", bg2: "#0c4a6e", wall: "#f8fafc", accent: "#ffffff", holeHalo: "rgba(255, 255, 255, 0.25)", pattern: "rgba(186, 230, 253, 0.15)" },
+                ballStart: { x: 400, y: 410 },
+                holePos: { x: 400, y: 40 },
+                walls: [
+                    // Murs horizontaux restreints pour ne pas aller tout en haut près du trou
+                    { x: 100, y: 250, w: 200, h: 25, moving: true, range: 150, axis: 'x', startX: 100 },
+                    { x: 500, y: 250, w: 200, h: 25, moving: true, range: 150, axis: 'x', startX: 500 },
+                    // Mur vertical décalé vers le bas pour ne pas masquer le trou
+                    { x: 300, y: 150, w: 200, h: 25, moving: true, range: 80, axis: 'y', startY: 150 }
+                ]
+            },
+            {
+                name: "NIVEAU 5 : VOID INFINITY",
+                colors: { bg1: "#1e1b4b", bg2: "#0f172a", wall: "#ffffff", accent: "#c084fc", holeHalo: "rgba(192, 132, 252, 0.3)", pattern: "rgba(192, 132, 252, 0.15)" },
+                ballStart: { x: 70, y: 225 },
+                holePos: { x: 730, y: 225 },
+                walls: [
+                    { x: 250, y: 50, w: 25, h: 120, moving: true, range: 250, axis: 'y', startY: 50 },
+                    { x: 400, y: 150, w: 25, h: 150, moving: true, range: 120, axis: 'y', startY: 150 },
+                    { x: 550, y: 280, w: 25, h: 120, moving: true, range: 250, axis: 'y', startY: 50 }
+                ]
             }
+        ];
 
-            document.getElementById('multiplayer-lobby').style.display = "none";
-            document.getElementById('game-container').style.display = "block";
-            document.getElementById('game-header').style.display = "flex";
-            document.getElementById('game-controls').style.display = "flex";
-            document.getElementById('player-role-display').textContent = "JOUEUR " + myPlayerNum;
-            document.getElementById('player-role-display').style.color = myPlayerNum === 1 ? 'var(--player1-color)' : 'var(--player2-color)';
+        function setDifficulty(mode) {
+            difficulty = mode;
+            document.getElementById('btn-easy').classList.toggle('selected', mode === 'EASY');
+            document.getElementById('btn-hard').classList.toggle('selected', mode === 'HARD');
+        }
 
-            // Écouter les changements de la salle
-            onSnapshot(roomRef, (doc) => {
-                if(doc.exists()) syncRoom(doc.data());
-            }, (err) => console.error("Erreur Sync:", err));
-        };
-
-        function syncRoom(data) {
-            roomData = data;
-            currentLevelIndex = data.levelIndex;
-            
-            // Sync positions (seulement si on ne bouge pas localement pour éviter les saccades)
-            if (gameState !== "MOVING") {
-                ballP1.x = data.p1Pos.x; ballP1.y = data.p1Pos.y;
-                ballP2.x = data.p2Pos.x; ballP2.y = data.p2Pos.y;
-            }
-
-            document.getElementById('score-display').textContent = `P1: ${data.p1Score} | P2: ${data.p2Score}`;
-            document.getElementById('level-name').textContent = data.status === "waiting" ? "ATTENTE JOUEUR 2..." : LEVELS[currentLevelIndex].name;
-            
-            const indicator = document.getElementById('turn-indicator');
-            if (data.status === "waiting") {
-                indicator.textContent = "EN ATTENTE...";
-                indicator.style.borderColor = "white";
-            } else {
-                indicator.textContent = data.turn === myPlayerNum ? "C'EST VOTRE TOUR !" : "TOUR DE L'ADVERSAIRE";
-                indicator.style.borderColor = data.turn === 1 ? 'var(--player1-color)' : 'var(--player2-color)';
+        function generatePatterns() {
+            patterns = [];
+            for(let i=0; i<60; i++) {
+                patterns.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 25 + 10,
+                    opacity: Math.random() * 0.5 + 0.5,
+                    rotation: Math.random() * Math.PI
+                });
             }
         }
 
-        // BOUCLE DE JEU
-        function update() {
-            if (!roomData || roomData.status !== "playing") {
-                draw();
-                requestAnimationFrame(update);
-                return;
-            }
-
-            const level = LEVELS[currentLevelIndex];
+        function initLevel(index) {
+            const lvl = LEVELS[index];
+            currentLevelIndex = index;
+            shotsInLevel = 0;
+            scoreDisplay.textContent = `COUPS : 0`;
+            document.getElementById('level-name').textContent = lvl.name;
+            generatePatterns();
             
-            if (gameState === "MOVING") {
-                const b = myPlayerNum === 1 ? ballP1 : ballP2;
-                b.x += b.vx; b.y += b.vy;
-                b.vx *= 0.985; b.vy *= 0.985;
+            const titleAccent = document.getElementById('title-accent');
+            if (index === 2) titleAccent.style.color = "#ef4444";
+            else if (index === 3) titleAccent.style.color = "#0ea5e9";
+            else if (index === 4) titleAccent.style.color = "#a855f7";
+            else titleAccent.style.color = "#10b981";
+            
+            ball.x = lvl.ballStart.x;
+            ball.y = lvl.ballStart.y;
+            ball.vx = 0; ball.vy = 0;
+            hole.x = lvl.holePos.x;
+            hole.y = lvl.holePos.y;
+            walls = JSON.parse(JSON.stringify(lvl.walls));
 
-                // Collisions murs simples
-                level.walls.forEach(w => {
-                    if (b.x + 8 > w.x && b.x - 8 < w.x + w.w && b.y + 8 > w.y && b.y - 8 < w.y + w.h) {
-                        b.vx *= -0.8; b.vy *= -0.8;
+            gameState = "WAITING";
+            powerVal = 0;
+            powerBar.style.height = "0%";
+            overlay.style.display = "none";
+        }
+
+        function update() {
+            animationFrame++;
+
+            walls.forEach(w => {
+                if (w.moving) {
+                    let offset = Math.sin(animationFrame * 0.02) * w.range;
+                    if (w.axis === 'x') w.x = w.startX + offset;
+                    else if (w.axis === 'y') w.y = w.startY + offset;
+                }
+            });
+
+            if (gameState === "CHARGING") {
+                powerVal = Math.min(100, powerVal + 1.2);
+                powerBar.style.height = powerVal + "%";
+            }
+            else if (gameState === "MOVING") {
+                let distToHole = Math.hypot(ball.x - hole.x, ball.y - hole.y);
+                
+                const haloLimit = difficulty === "EASY" ? 65 : 25;
+                const pullStrength = difficulty === "EASY" ? 0.45 : 0.15;
+
+                if (distToHole < haloLimit) {
+                    let angle = Math.atan2(hole.y - ball.y, hole.x - ball.x);
+                    ball.vx += Math.cos(angle) * pullStrength;
+                    ball.vy += Math.sin(angle) * pullStrength;
+                }
+
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+                ball.vx *= ball.friction;
+                ball.vy *= ball.friction;
+
+                if (ball.x < ball.r) { ball.vx = Math.abs(ball.vx) * 0.8; ball.x = ball.r; }
+                if (ball.x > canvas.width - ball.r) { ball.vx = -Math.abs(ball.vx) * 0.8; ball.x = canvas.width - ball.r; }
+                if (ball.y < ball.r) { ball.vy = Math.abs(ball.vy) * 0.8; ball.y = ball.r; }
+                if (ball.y > canvas.height - ball.r) { ball.vy = -Math.abs(ball.vy) * 0.8; ball.y = canvas.height - ball.r; }
+
+                walls.forEach(w => {
+                    let closestX = Math.max(w.x, Math.min(ball.x, w.x + w.w));
+                    let closestY = Math.max(w.y, Math.min(ball.y, w.y + w.h));
+                    let dx = ball.x - closestX;
+                    let dy = ball.y - closestY;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < ball.r) {
+                        let nx = dx / (distance || 1);
+                        let ny = dy / (distance || 1);
+
+                        if (distance === 0) {
+                            nx = (ball.x < w.x + w.w/2) ? -1 : 1;
+                            ny = (ball.y < w.y + w.h/2) ? -1 : 1;
+                        }
+
+                        let dot = ball.vx * nx + ball.vy * ny;
+                        if (dot < 0) {
+                            ball.vx = (ball.vx - 2 * dot * nx) * 0.82; 
+                            ball.vy = (ball.vy - 2 * dot * ny) * 0.82;
+                        }
+                        let overlap = ball.r - distance;
+                        ball.x += nx * (overlap + 0.1); 
+                        ball.y += ny * (overlap + 0.1);
                     }
                 });
 
-                // Trou
-                let dist = Math.hypot(b.x - level.hole.x, b.y - level.hole.y);
-                if (dist < 15 && Math.hypot(b.vx, b.vy) < 3) {
-                    finishTurn(true);
+                if (distToHole < hole.r && Math.hypot(ball.vx, ball.vy) < 5) {
+                    gameState = "HOLE";
+                    ball.vx = 0; ball.vy = 0;
+                    levelComplete();
                 }
 
-                if (Math.abs(b.vx) < 0.1 && Math.abs(b.vy) < 0.1) {
-                    finishTurn(false);
+                if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1) {
+                    ball.vx = 0; ball.vy = 0;
+                    if (gameState !== "HOLE") {
+                        gameState = "WAITING";
+                        powerVal = 0;
+                        powerBar.style.height = "0%";
+                    }
                 }
             }
 
@@ -350,68 +405,88 @@
             requestAnimationFrame(update);
         }
 
-        async function finishTurn(inHole) {
-            gameState = "WAITING";
-            const roomId = document.getElementById('room-id').value.trim();
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-            
-            const updateObj = {};
-            if (myPlayerNum === 1) {
-                updateObj.p1Pos = { x: ballP1.x, y: ballP1.y };
-                if (inHole) {
-                    updateObj.p1Pos = LEVELS[currentLevelIndex].hole;
-                }
-            } else {
-                updateObj.p2Pos = { x: ballP2.x, y: ballP2.y };
-                if (inHole) {
-                    updateObj.p2Pos = LEVELS[currentLevelIndex].hole;
-                }
-            }
-
-            // Changer de tour
-            updateObj.turn = roomData.turn === 1 ? 2 : 1;
-            await updateDoc(roomRef, updateObj);
-        }
-
         function draw() {
-            ctx.fillStyle = "#15803d";
-            ctx.fillRect(0,0,800,450);
+            const lvl = LEVELS[currentLevelIndex];
+            ctx.clearRect(0,0,800,450);
+            
+            let grad = ctx.createRadialGradient(400, 225, 50, 400, 225, 500);
+            grad.addColorStop(0, lvl.colors.bg1);
+            grad.addColorStop(1, lvl.colors.bg2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            if (!roomData) return;
-            const level = LEVELS[currentLevelIndex];
-
-            // Trou
-            ctx.fillStyle = "black";
-            ctx.beginPath(); ctx.arc(level.hole.x, level.hole.y, 15, 0, Math.PI*2); ctx.fill();
-
-            // Murs
-            ctx.fillStyle = "#5d4037";
-            level.walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
-
-            // Balle P1
-            ctx.fillStyle = 'var(--player1-color)';
-            ctx.beginPath(); ctx.arc(ballP1.x, ballP1.y, 8, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "white"; ctx.stroke();
-
-            // Balle P2
-            ctx.fillStyle = 'var(--player2-color)';
-            ctx.beginPath(); ctx.arc(ballP2.x, ballP2.y, 8, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "white"; ctx.stroke();
-
-            // Ligne de visée (seulement si c'est notre tour)
-            if (roomData.turn === myPlayerNum && gameState !== "MOVING") {
-                const b = myPlayerNum === 1 ? ballP1 : ballP2;
+            ctx.strokeStyle = lvl.colors.pattern;
+            ctx.lineWidth = 2;
+            patterns.forEach(p => {
                 ctx.beginPath();
-                ctx.strokeStyle = "white";
-                ctx.setLineDash([5, 5]);
-                ctx.moveTo(b.x, b.y);
-                ctx.lineTo(mouseX, mouseY);
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation + animationFrame * 0.002);
+                ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(0, 0, 2, 0, Math.PI * 2);
+                ctx.fillStyle = lvl.colors.pattern;
+                ctx.fill();
+                ctx.restore();
+            });
+
+            const haloLimit = difficulty === "EASY" ? 65 : 25;
+            ctx.fillStyle = lvl.colors.holeHalo;
+            ctx.beginPath();
+            ctx.arc(hole.x, hole.y, haloLimit, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#020617";
+            ctx.beginPath();
+            ctx.arc(hole.x, hole.y, hole.r, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = lvl.colors.accent;
+            ctx.fillRect(hole.x - 2, hole.y - 30, 3, 30);
+            ctx.beginPath();
+            ctx.moveTo(hole.x + 1, hole.y - 30);
+            ctx.lineTo(hole.x + 15, hole.y - 22);
+            ctx.lineTo(hole.x + 1, hole.y - 15);
+            ctx.fill();
+
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetY = 4;
+            ctx.shadowColor = "rgba(0,0,0,0.4)";
+            ctx.fillStyle = lvl.colors.wall;
+            walls.forEach(w => {
+                ctx.fillRect(w.x, w.y, w.w, w.h);
+                ctx.strokeStyle = "rgba(255,255,255,0.15)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(w.x, w.y, w.w, w.h);
+            });
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            if (gameState === "AIMING") {
+                let angle = Math.atan2(mouseY - ball.y, mouseX - ball.x);
+                let dist = 40 + (powerVal * 1.5);
+                
+                ctx.beginPath();
+                ctx.setLineDash([5, 8]);
+                ctx.lineWidth = 4;
+                let color = powerVal < 40 ? "#10b981" : (powerVal < 75 ? "#facc15" : "#ef4444");
+                ctx.strokeStyle = color;
+                ctx.moveTo(ball.x, ball.y);
+                ctx.lineTo(ball.x + Math.cos(angle) * dist, ball.y + Math.sin(angle) * dist);
                 ctx.stroke();
                 ctx.setLineDash([]);
             }
+
+            ctx.fillStyle = "white";
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = "rgba(255,255,255,0.7)";
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
         }
 
-        // INPUTS
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
             mouseX = e.clientX - rect.left;
@@ -419,44 +494,62 @@
         });
 
         canvas.addEventListener('mousedown', () => {
-            if (roomData && roomData.turn === myPlayerNum && gameState === "WAITING") {
-                isCharging = true;
-                powerVal = 0;
-                chargePower();
-            }
-        });
-
-        window.addEventListener('mouseup', async () => {
-            if (isCharging) {
-                isCharging = false;
+            if (gameState === "WAITING") {
+                gameState = "CHARGING";
+                document.getElementById('power-gauge-ui').classList.add('active');
+            } else if (gameState === "AIMING") {
                 shoot();
             }
         });
 
-        function chargePower() {
-            if (!isCharging) return;
-            powerVal = Math.min(100, powerVal + 2);
-            powerBar.style.height = powerVal + "%";
-            requestAnimationFrame(chargePower);
-        }
+        window.addEventListener('mouseup', () => {
+            if (gameState === "CHARGING") {
+                gameState = "AIMING";
+                document.getElementById('power-gauge-ui').classList.remove('active');
+            }
+        });
 
-        async function shoot() {
+        function shoot() {
+            shotsInLevel++;
+            scoreDisplay.textContent = `COUPS : ${shotsInLevel}`;
+            let angle = Math.atan2(mouseY - ball.y, mouseX - ball.x);
+            let force = (powerVal / 5.0) + 2.0;
+            ball.vx = Math.cos(angle) * force;
+            ball.vy = Math.sin(angle) * force;
             gameState = "MOVING";
-            const b = myPlayerNum === 1 ? ballP1 : ballP2;
-            const angle = Math.atan2(mouseY - b.y, mouseX - b.x);
-            const force = powerVal / 5;
-            b.vx = Math.cos(angle) * force;
-            b.vy = Math.sin(angle) * force;
-
-            const roomId = document.getElementById('room-id').value.trim();
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-            
-            // Update score
-            if (myPlayerNum === 1) await updateDoc(roomRef, { p1Score: roomData.p1Score + 1 });
-            else await updateDoc(roomRef, { p2Score: roomData.p2Score + 1 });
         }
 
-        requestAnimationFrame(update);
+        function levelComplete() {
+            totalShots.push({ name: LEVELS[currentLevelIndex].name, score: shotsInLevel });
+            overlay.style.display = "flex";
+            document.getElementById('overlay-stats').innerHTML = `Niveau terminé en <span style="color:#10b981">${shotsInLevel}</span> coups !`;
+            if (currentLevelIndex === LEVELS.length - 1) {
+                document.getElementById('next-btn').textContent = "VOIR LE RÉSULTAT FINAL";
+                document.getElementById('next-btn').onclick = showSummary;
+            }
+        }
+
+        function nextLevel() {
+            initLevel(currentLevelIndex + 1);
+        }
+
+        function showSummary() {
+            overlay.style.display = "none";
+            const summary = document.getElementById('summary-screen');
+            const list = document.getElementById('final-stats-list');
+            summary.style.display = "block";
+            let total = 0;
+            list.innerHTML = totalShots.map(s => {
+                total += s.score;
+                return `<div style="padding: 12px 0; border-bottom: 1px solid #334155; display:flex; justify-content:space-between">
+                            <span style="color:#94a3b8">${s.name}</span>
+                            <span style="font-weight:900">${s.score}</span>
+                        </div>`;
+            }).join('') + `<div style="font-size:24px; font-weight:900; color:#fff; margin-top:20px; text-align:right">SCORE TOTAL : ${total}</div>`;
+        }
+
+        initLevel(0);
+        update();
     </script>
 </body>
 </html>
