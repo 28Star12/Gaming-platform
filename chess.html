@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Chess Pro - Edition Deluxe</title>
+    <style>
+        :root {
+            --bg-dark: #1a1a1a;
+            --panel-bg: #2d3436;
+            --board-light: #dee3e6;
+            --board-dark: #8ca2ad;
+            --accent: #27ae60;
+            --highlight: rgba(241, 196, 15, 0.5);
+            --last-move: rgba(46, 204, 113, 0.4);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg-dark);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #main-layout {
+            display: flex;
+            gap: 40px;
+            padding: 20px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* Plateau plus grand */
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 80px);
+            grid-template-rows: repeat(8, 80px);
+            border: 8px solid #444;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .square {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            transition: background 0.2s;
+        }
+
+        /* Couleurs du plateau */
+        .light { background-color: var(--board-light); }
+        .dark { background-color: var(--board-dark); }
+
+        /* Pièces SVG plus grandes */
+        .piece {
+            width: 70px;
+            height: 70px;
+            cursor: pointer;
+            z-index: 2;
+            transition: transform 0.1s ease;
+        }
+        .piece:active { transform: scale(1.1); }
+
+        /* Effets de sélection */
+        .selected { background-color: #3498db !important; }
+        .valid-move::after {
+            content: "";
+            width: 20px;
+            height: 20px;
+            background: var(--highlight);
+            border-radius: 50%;
+        }
+        .last-move { background-color: var(--last-move) !important; }
+
+        /* Panneau de contrôle */
+        #side-panel {
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-box {
+            background: #1e272e;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #turn-indicator {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #history {
+            flex-grow: 1;
+            background: #1e272e;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            overflow-y: auto;
+            max-height: 400px;
+            border: 1px solid #444;
+        }
+
+        button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.3s;
+        }
+        button:hover { background: #c0392b; }
+    </style>
+</head>
+<body>
+
+    <div id="main-layout">
+        <div id="board"></div>
+
+        <div id="side-panel">
+            <div class="status-box">
+                <div id="turn-indicator">Blancs à jouer</div>
+                <div id="check-status" style="color: #e74c3c; margin-top: 5px;"></div>
+            </div>
+            
+            <div id="history">
+                <div style="border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 5px;">HISTORIQUE</div>
+            </div>
+
+            <button onclick="window.location.reload()">NOUVELLE PARTIE</button>
+        </div>
+    </div>
+
+<script>
+// --- CONFIGURATION DES PIÈCES (SVG haute définition) ---
+const svgPieces = {
+    white: {
+        p: 'https://upload.wikimedia.org/wikipedia/commons/4/45/Chess_plt45.svg',
+        n: 'https://upload.wikimedia.org/wikipedia/commons/7/70/Chess_nlt45.svg',
+        b: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Chess_blt45.svg',
+        r: 'https://upload.wikimedia.org/wikipedia/commons/7/72/Chess_rlt45.svg',
+        q: 'https://upload.wikimedia.org/wikipedia/commons/1/15/Chess_qlt45.svg',
+        k: 'https://upload.wikimedia.org/wikipedia/commons/4/42/Chess_klt45.svg'
+    },
+    black: {
+        p: 'https://upload.wikimedia.org/wikipedia/commons/c/c7/Chess_pdt45.svg',
+        n: 'https://upload.wikimedia.org/wikipedia/commons/e/ef/Chess_ndt45.svg',
+        b: 'https://upload.wikimedia.org/wikipedia/commons/9/98/Chess_bdt45.svg',
+        r: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/Chess_rdt45.svg',
+        q: 'https://upload.wikimedia.org/wikipedia/commons/4/47/Chess_qdt45.svg',
+        k: 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Chess_kdt45.svg'
+    }
+};
+
+let board = [];
+let turn = 'white';
+let selectedSquare = null;
+let lastMoveSquares = [];
+let castlingRights = { white: { k: true, q: true }, black: { k: true, q: true } };
+let enPassantTarget = null;
+
+function init() {
+    const layout = [
+        ['r','n','b','q','k','b','n','r'],
+        ['p','p','p','p','p','p','p','p'],
+        Array(8).fill(null), Array(8).fill(null), Array(8).fill(null), Array(8).fill(null),
+        ['P','P','P','P','P','P','P','P'],
+        ['R','N','B','Q','K','B','N','R']
+    ];
+
+    for (let r = 0; r < 8; r++) {
+        board[r] = [];
+        for (let c = 0; c < 8; c++) {
+            let char = layout[r][c];
+            if (!char) { board[r][c] = null; continue; }
+            board[r][c] = { 
+                type: char.toLowerCase(), 
+                color: char === char.toUpperCase() ? 'white' : 'black' 
+            };
+        }
+    }
+    render();
+}
+
+function render() {
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML = '';
+
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const square = document.createElement('div');
+            square.className = `square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
+            
+            if (selectedSquare && selectedSquare.r === r && selectedSquare.c === c) square.classList.add('selected');
+            if (lastMoveSquares.some(s => s.r === r && s.c === c)) square.classList.add('last-move');
+
+            const p = board[r][c];
+            if (p) {
+                const img = document.createElement('img');
+                img.src = svgPieces[p.color][p.type];
+                img.className = 'piece';
+                square.appendChild(img);
+            }
+
+            square.onclick = () => handleClick(r, c);
+            boardEl.appendChild(square);
+        }
+    }
+}
+
+function handleClick(r, c) {
+    const piece = board[r][c];
+
+    if (selectedSquare) {
+        if (canMove(selectedSquare.r, selectedSquare.c, r, c)) {
+            executeMove(selectedSquare.r, selectedSquare.c, r, c);
+            selectedSquare = null;
+            checkGameState();
+        } else {
+            if (piece && piece.color === turn) selectedSquare = {r, c};
+            else selectedSquare = null;
+        }
+    } else if (piece && piece.color === turn) {
+        selectedSquare = {r, c};
+    }
+    render();
+}
+
+function canMove(fr, fc, tr, tc, checkSafety = true) {
+    const p = board[fr][fc];
+    const target = board[tr][tc];
+    if (target && target.color === p.color) return false;
+
+    let possible = false;
+    const dr = Math.abs(tr - fr);
+    const dc = Math.abs(tc - fc);
+
+    switch(p.type) {
+        case 'p':
+            const dir = p.color === 'white' ? -1 : 1;
+            if (fc === tc && !target) {
+                if (tr === fr + dir) possible = true;
+                if (fr === (p.color === 'white' ? 6 : 1) && tr === fr + 2*dir && !board[fr+dir][fc]) possible = true;
+            }
+            if (dc === 1 && tr === fr + dir) {
+                if (target) possible = true;
+                if (enPassantTarget && enPassantTarget.r === tr && enPassantTarget.c === tc) possible = true;
+            }
+            break;
+        case 'n': possible = (dr === 2 && dc === 1) || (dr === 1 && dc === 2); break;
+        case 'b': possible = dr === dc && isClear(fr, fc, tr, tc); break;
+        case 'r': possible = (fr === tr || fc === tc) && isClear(fr, fc, tr, tc); break;
+        case 'q': possible = (dr === dc || fr === tr || fc === tc) && isClear(fr, fc, tr, tc); break;
+        case 'k': 
+            possible = dr <= 1 && dc <= 1;
+            if (!possible && dr === 0 && dc === 2 && checkSafety) possible = testCastle(fr, fc, tr, tc);
+            break;
+    }
+
+    if (possible && checkSafety) {
+        const tempTarget = board[tr][tc];
+        board[tr][tc] = p; board[fr][fc] = null;
+        const safe = !isCheck(p.color);
+        board[fr][fc] = p; board[tr][tc] = tempTarget;
+        return safe;
+    }
+    return possible;
+}
+
+function isClear(fr, fc, tr, tc) {
+    const rs = Math.sign(tr - fr), cs = Math.sign(tc - fc);
+    let r = fr + rs, c = fc + cs;
+    while(r !== tr || c !== tc) {
+        if (board[r][c]) return false;
+        r += rs; c += cs;
+    }
+    return true;
+}
+
+function isCheck(color) {
+    let kp = null;
+    for(let r=0; r<8; r++) for(let c=0; c<8; c++) 
+        if(board[r][c]?.type === 'k' && board[r][c]?.color === color) kp = {r,c};
+    
+    for(let r=0; r<8; r++) for(let c=0; c<8; c++)
+        if(board[r][c] && board[r][c].color !== color && canMove(r, c, kp.r, kp.c, false)) return true;
+    return false;
+}
+
+function executeMove(fr, fc, tr, tc) {
+    const p = board[fr][fc];
+    
+    // En Passant capture logic
+    if (p.type === 'p' && enPassantTarget && tr === enPassantTarget.r && tc === enPassantTarget.c) {
+        board[fr][tc] = null;
+    }
+    enPassantTarget = (p.type === 'p' && Math.abs(tr - fr) === 2) ? { r: (fr + tr) / 2, c: fc } : null;
+
+    // Roque
+    if (p.type === 'k' && Math.abs(tc - fc) === 2) {
+        const rookC = tc > fc ? 7 : 0, newRookC = tc > fc ? 5 : 3;
+        board[fr][newRookC] = board[fr][rookC]; board[fr][rookC] = null;
+    }
+
+    // Move piece
+    board[tr][tc] = p; board[fr][fc] = null;
+    if (p.type === 'p' && (tr === 0 || tr === 7)) p.type = 'q'; // Promotion
+
+    // Rights
+    if (p.type === 'k') castlingRights[turn] = { k: false, q: false };
+    if (p.type === 'r') { if(fc === 0) castlingRights[turn].q = false; if(fc === 7) castlingRights[turn].k = false; }
+
+    lastMoveSquares = [{r: fr, c: fc}, {r: tr, c: tc}];
+    addHistory(p, fr, fc, tr, tc);
+    turn = turn === 'white' ? 'black' : 'white';
+    document.getElementById('turn-indicator').textContent = `${turn === 'white' ? 'Blancs' : 'Noirs'} à jouer`;
+    document.getElementById('turn-indicator').style.color = turn === 'white' ? '#ecf0f1' : '#f1c40f';
+}
+
+function testCastle(fr, fc, tr, tc) {
+    const side = tc > fc ? 'k' : 'q';
+    if (!castlingRights[turn][side] || isCheck(turn)) return false;
+    const step = tc > fc ? 1 : -1;
+    for (let i = 1; i <= 2; i++) {
+        if (board[fr][fc + i*step]) return false;
+        // Check if square is attacked
+        board[fr][fc + i*step] = board[fr][fc]; board[fr][fc] = null;
+        const danger = isCheck(turn);
+        board[fr][fc] = board[fr][fc + i*step]; board[fr][fc + i*step] = null;
+        if (danger) return false;
+    }
+    return true;
+}
+
+function addHistory(p, fr, fc, tr, tc) {
+    const h = document.getElementById('history');
+    const cols = 'abcdefgh';
+    const entry = document.createElement('div');
+    entry.textContent = `${turn[0].toUpperCase()}: ${p.type.toUpperCase()}${cols[fc]}${8-fr} -> ${cols[tc]}${8-tr}`;
+    h.prepend(entry);
+}
+
+function checkGameState() {
+    let moves = 0;
+    for(let r=0; r<8; r++) for(let c=0; c<8; c++)
+        if(board[r][c]?.color === turn)
+            for(let tr=0; tr<8; tr++) for(let tc=0; tc<8; tc++)
+                if(canMove(r, c, tr, tc)) moves++;
+
+    const check = isCheck(turn);
+    document.getElementById('check-status').textContent = check ? "ÉCHEC AU ROI !" : "";
+    
+    if (moves === 0) {
+        alert(check ? "ÉCHEC ET MAT !" : "PAT (ÉGALITÉ) !");
+    }
+}
+
+init();
+</script>
+</body>
+</html>
